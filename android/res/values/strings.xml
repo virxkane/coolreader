@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <resources>
     <string name="app_name">Cool Reader</string>
+    <string name="app_name_fork" translatable="false">Cool Reader (virxkane)</string>
     <string name="mi_search">Search</string>
     <string name="mi_exit">Exit</string>
     <string name="mi_goto">Go to</string>

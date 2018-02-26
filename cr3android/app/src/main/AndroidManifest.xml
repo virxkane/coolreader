@@ -27,13 +27,13 @@
         android:allowBackup="true"
         android:allowClearUserData="true"
         android:icon="@drawable/cr3_logo"
-        android:label="@string/app_name"
-        android:process="org.coolreader">
+        android:label="@string/app_name_fork"
+        android:process="org.coolreader.mod.virxkane">
 <!--
            android:configChanges="orientation|keyboardHidden|locale|screenSize"
 -->
         <activity android:name=".CoolReader"
-                  android:label="@string/app_name"
+                  android:label="@string/app_name_fork"
                   android:configChanges="orientation|keyboardHidden|locale|screenSize|screenLayout|layoutDirection"
                   android:theme="@android:style/Theme.NoTitleBar"
                   android:launchMode="singleInstance"

@@ -84,15 +84,16 @@ public class AboutDialog extends BaseDialog implements TabContentFactory {
 	{
 		super(activity);
 		mCoolReader = activity;
+		boolean isFork = !mCoolReader.getPackageName().equals(CoolReader.class.getPackage().getName());
 		setTitle(R.string.dlg_about);
 		LayoutInflater inflater = LayoutInflater.from(getContext());
 		TabHost tabs = (TabHost)inflater.inflate(R.layout.about_dialog, null);
 		mAppTab = (View)inflater.inflate(R.layout.about_dialog_app, null);
-		((TextView)mAppTab.findViewById(R.id.version)).setText("Cool Reader " + mCoolReader.getVersion());
+		((TextView)mAppTab.findViewById(R.id.version)).setText((isFork ? "Cool Reader (virxkane mod) " : "Cool Reader ") + mCoolReader.getVersion());
 		mLicenseTab = (View)inflater.inflate(R.layout.about_dialog_license, null);
 		String license = Engine.getInstance(mCoolReader).loadResourceUtf8(R.raw.license);
 		((TextView)mLicenseTab.findViewById(R.id.license)).setText(license);
-		boolean billingSupported = mCoolReader.isDonationSupported();
+		boolean billingSupported = mCoolReader.isDonationSupported() && !isFork;
 		mDonationTab = (View)inflater.inflate(billingSupported ? R.layout.about_dialog_donation2 : R.layout.about_dialog_donation, null);
 
 		if (billingSupported) {
