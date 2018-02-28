@@ -6,8 +6,8 @@ android {
         applicationId "org.coolreader.mod.virxkane"
         minSdkVersion 9
         targetSdkVersion 26
-        versionCode 201802262
-        versionName "3.1.2-87.20180226-2"
+        versionCode 201802271
+        versionName "3.1.2-87.20180227-1"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
