@@ -1291,18 +1291,19 @@ public class BaseActivity extends Activity implements Settings {
 		public void setSettings(Properties settings, int delayMillis, boolean notify) {
 			Properties oldSettings = mSettings;
 			mSettings = new Properties(settings);
-			if (delayMillis >= 0) {
-				saveSettingsTask.postDelayed(new Runnable() {
-		    		public void run() {
-		    			BackgroundThread.instance().postGUI(new Runnable() {
-		    				@Override
-		    				public void run() {
-		   						saveSettings(mSettings);
-		    				}
-		    			});
-		    		}
-		    	}, delayMillis);
-			}
+			saveSettings(mSettings);
+//			if (delayMillis >= 0) {
+//				saveSettingsTask.postDelayed(new Runnable() {
+//		    		public void run() {
+//		    			BackgroundThread.instance().postGUI(new Runnable() {
+//		    				@Override
+//		    				public void run() {
+//		   						saveSettings(mSettings);
+//		    				}
+//		    			});
+//		    		}
+//		    	}, delayMillis);
+//			}
 			if (notify)
 				mActivity.onSettingsChanged(mSettings, oldSettings);
 		}
@@ -1546,6 +1547,7 @@ public class BaseActivity extends Activity implements Settings {
 	        props.applyDefault(ReaderView.PROP_APP_SCREEN_BACKLIGHT_LOCK, "3");
 	        if ("1".equals(props.getProperty(ReaderView.PROP_APP_SCREEN_BACKLIGHT_LOCK)))
 	            props.setProperty(ReaderView.PROP_APP_SCREEN_BACKLIGHT_LOCK, "3");
+	        props.applyDefault(ReaderView.PROP_APP_MOTION_TIMEOUT, "0");
 	        props.applyDefault(ReaderView.PROP_APP_BOOK_PROPERTY_SCAN_ENABLED, "1");
 	        props.applyDefault(ReaderView.PROP_APP_KEY_BACKLIGHT_OFF, DeviceInfo.SAMSUNG_BUTTONS_HIGHLIGHT_PATCH ? "0" : "1");
 	        props.applyDefault(ReaderView.PROP_LANDSCAPE_PAGES, DeviceInfo.ONE_COLUMN_IN_LANDSCAPE ? "0" : "1");

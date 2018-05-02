@@ -89,6 +89,8 @@ public class OptionsDialog extends BaseDialog implements TabContentFactory, Opti
 			"Default", "1%", "2%", "3%", "4%", "5%", "6%", "7%", "8%", "9%", 
 			"10%", "12%", "15%", "20%", "25%", "30%", "35%", "40%", "45%", "50%", "55%", "60%", "65%", "70%", "75%", "80%", "85%", "90%", "95%", "100%",
 	};
+	public static int[] mMotionTimeouts;
+	public static String[] mMotionTimeoutsTitles;
 	int[] mInterlineSpaces = new int[] {
 			80, 85, 90, 95, 100, 105, 110, 115, 120, 130, 140, 150, 160, 180, 200
 		};
@@ -266,7 +268,7 @@ public class OptionsDialog extends BaseDialog implements TabContentFactory, Opti
 	public BaseActivity getActivity() { return mActivity; }
 	public Properties getProperties() { return mProperties; }
 	public LayoutInflater getInflater() { return mInflater; }
-	
+
 	public abstract static class OptionBase {
 		protected View myView;
 		Properties mProperties;
@@ -672,7 +674,15 @@ public class OptionsDialog extends BaseDialog implements TabContentFactory, Opti
 
 				addKey(listView, KeyEvent.KEYCODE_HOME, "Home");
 			} else {
-				EnumSet keyFlags = DeviceInfo.EINK_ONYX && DeviceInfo.ONYX_BUTTONS_LONG_PRESS_NOT_AVAILABLE ? EnumSet.of(KeyActionFlag.KEY_ACTION_FLAG_NORMAL, KeyActionFlag.KEY_ACTION_FLAG_DOUBLE) : EnumSet.allOf(KeyActionFlag.class);
+				EnumSet<KeyActionFlag> keyFlags;
+				if (DeviceInfo.EINK_ONYX && DeviceInfo.ONYX_BUTTONS_LONG_PRESS_NOT_AVAILABLE) {
+				    keyFlags = EnumSet.of(
+				    		KeyActionFlag.KEY_ACTION_FLAG_NORMAL,
+							KeyActionFlag.KEY_ACTION_FLAG_DOUBLE
+					);
+				} else {
+					keyFlags = EnumSet.allOf(KeyActionFlag.class);
+				}
 
 				if (KeyCharacterMap.deviceHasKey(KeyEvent.KEYCODE_MENU))
 					addKey(listView, KeyEvent.KEYCODE_MENU, "Menu", keyFlags);
@@ -1135,10 +1145,30 @@ public class OptionsDialog extends BaseDialog implements TabContentFactory, Opti
 			setDefaultValue(dicts[0].id);
 			for (DictInfo dict : dicts) {
 				boolean installed = mActivity.isPackageInstalled(dict.packageName);
-				add( dict.id, dict.name + (installed ? "" : " " + mActivity.getString(R.string.options_app_dictionary_not_installed)));
+				String sAdd = mActivity.getString(R.string.options_app_dictionary_not_installed);
+				if ((dict.internal==1) && (dict.packageName.equals("com.socialnmobile.colordict")) && (!installed)) {
+					installed = mActivity.isPackageInstalled("mobi.goldendict.android");
+					add(dict.id, (installed ? "GoldenDict" : dict.name + " " + sAdd));
+				} else {
+					add(dict.id, dict.name + (installed ? "" : " " + sAdd));
+				}
 			}
 		}
-	} 
+	}
+
+    class DictOptions2 extends ListOption
+    {
+        public DictOptions2( OptionOwner owner, String label )
+        {
+            super( owner, label, PROP_APP_DICTIONARY_2 );
+            DictInfo[] dicts = Dictionaries.getDictList();
+            setDefaultValue(dicts[0].id);
+            for (DictInfo dict : dicts) {
+                boolean installed = mActivity.isPackageInstalled(dict.packageName);
+                add( dict.id, dict.name + (installed ? "" : " " + mActivity.getString(R.string.options_app_dictionary_not_installed)));
+            }
+        }
+    }
 	
 	class HyphenationOptions extends ListOption
 	{
@@ -1943,9 +1973,11 @@ public class OptionsDialog extends BaseDialog implements TabContentFactory, Opti
 			mBacklightLevelsTitles[0] = getString(R.string.options_app_backlight_screen_default);
 			mOptionsApplication.add(new ListOption(this, getString(R.string.options_app_backlight_screen), PROP_APP_SCREEN_BACKLIGHT).add(mBacklightLevels, mBacklightLevelsTitles).setDefaultValue("-1").noIcon());
 		}
+		mOptionsApplication.add(new ListOption(this, getString(R.string.options_app_tts_stop_motion_timeout), PROP_APP_MOTION_TIMEOUT).add(mMotionTimeouts, mMotionTimeoutsTitles).setDefaultValue(Integer.toString(mMotionTimeouts[0])).noIcon());
 		mOptionsApplication.add(new BoolOption(this, getString(R.string.options_app_key_backlight_off), PROP_APP_KEY_BACKLIGHT_OFF).setDefaultValue("1").noIcon());
 		mOptionsApplication.add(new IconsBoolOption(this, getString(R.string.options_app_settings_icons), PROP_APP_SETTINGS_SHOW_ICONS).setDefaultValue("1").noIcon());
 		mOptionsApplication.add(new DictOptions(this, getString(R.string.options_app_dictionary)).noIcon());
+		mOptionsApplication.add(new DictOptions2(this, getString(R.string.options_app_dictionary2)).noIcon());
 		mOptionsApplication.add(new BoolOption(this, getString(R.string.options_app_show_cover_pages), PROP_APP_SHOW_COVERPAGES).noIcon());
 		mOptionsApplication.add(new ListOption(this, getString(R.string.options_app_cover_page_size), PROP_APP_COVERPAGE_SIZE).add(mCoverPageSizes, mCoverPageSizeTitles).setDefaultValue("1").noIcon());
 		mOptionsApplication.add(new BoolOption(this, getString(R.string.options_app_scan_book_props), PROP_APP_BOOK_PROPERTY_SCAN_ENABLED).setDefaultValue("1").noIcon());
@@ -1998,8 +2030,11 @@ public class OptionsDialog extends BaseDialog implements TabContentFactory, Opti
 		L.v("creating options dialog");
         setCancelable(true);
         setCanceledOnTouchOutside(true);
-		
-        if (mode == Mode.READER)
+
+		mMotionTimeoutsTitles = activity.getResources().getStringArray(R.array.motion_timeout_titles);
+        mMotionTimeouts = activity.getResources().getIntArray(R.array.motion_timeout_values);
+
+		if (mode == Mode.READER)
         	setupReaderOptions();
         else if (mode == Mode.BROWSER)
         	setupBrowserOptions();
@@ -2024,7 +2059,7 @@ public class OptionsDialog extends BaseDialog implements TabContentFactory, Opti
 //				onNegativeButtonClick();
 //			}
 //		});
-		
+
 		super.onCreate(savedInstanceState);
 		L.v("OptionsDialog is created");
 	}
