@@ -12,6 +12,8 @@
 
 #include "../include/lvpagesplitter.h"
 #include "../include/lvtinydom.h"
+#include "../include/crlog.h"
+
 #include <time.h>
 
 

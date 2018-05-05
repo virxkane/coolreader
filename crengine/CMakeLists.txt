@@ -15,6 +15,8 @@ src/lvstsheet.cpp
 src/txtselector.cpp
 #src/xutils.cpp
 src/crtest.cpp
+src/crlog.cpp
+src/crfilelogger.cpp
 )
 
 if ( NOT ${GUI} STREQUAL FB2PROPS )

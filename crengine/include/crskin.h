@@ -27,6 +27,7 @@
 #include "lvfntman.h"
 #include "lvdrawbuf.h"
 #include "lvtinydom.h"
+#include "crlog.h"
 
 
 // Vertical alignment flags

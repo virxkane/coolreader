@@ -14,6 +14,7 @@
 
 #include "../include/cri18n.h"
 #include "../include/lvstream.h"
+#include "../include/crlog.h"
 
 CRI18NTranslator * CRI18NTranslator::_translator = NULL;
 CRI18NTranslator * CRI18NTranslator::_defTranslator = NULL;

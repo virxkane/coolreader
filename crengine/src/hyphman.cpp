@@ -38,6 +38,7 @@
 #include "../include/hyphman.h"
 #include "../include/lvfnt.h"
 #include "../include/lvstring.h"
+#include "../include/crlog.h"
 
 
 #ifdef ANDROID

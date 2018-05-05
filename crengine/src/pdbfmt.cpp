@@ -1,4 +1,6 @@
 #include "../include/pdbfmt.h"
+#include "../include/crlog.h"
+
 #include <ctype.h>
 
 // uncomment following line to save PDB content streams to /tmp
