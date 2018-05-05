@@ -20,6 +20,7 @@
 #include "../../crengine/include/epubfmt.h"
 #include "../../crengine/include/pdbfmt.h"
 #include "../../crengine/include/lvstream.h"
+#include "../../crengine/include/crlog.h"
 
 
 #include <../../crengine/include/fb2def.h>
