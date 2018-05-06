@@ -39,6 +39,9 @@ LOCAL_CFLAGS += -fexceptions
 CRENGINE_SRC_FILES := \
     ../../crengine/src/cp_stats.cpp \
     ../../crengine/src/lvstring.cpp \
+    ../../crengine/src/lvstring8collection.cpp \
+    ../../crengine/src/lvstring16collection.cpp \
+    ../../crengine/src/lvstring16hashedcollection.cpp \
     ../../crengine/src/props.cpp \
     ../../crengine/src/lstridmap.cpp \
     ../../crengine/src/rtfimp.cpp \

@@ -24,6 +24,7 @@
 #include "lvptrvec.h"
 #include "hyphman.h"
 #include "lvdrawbuf.h"
+#include "lvstring16collection.h"
 
 #if !defined(__SYMBIAN32__) && defined(_WIN32)
 extern "C" {

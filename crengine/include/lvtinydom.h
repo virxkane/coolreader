@@ -27,6 +27,7 @@
 
 #include "lvmemman.h"
 #include "lvstring.h"
+#include "lvstring16hashedcollection.h"
 #include "serialbuf.h"
 #include "lstridmap.h"
 #include "lvxml.h"

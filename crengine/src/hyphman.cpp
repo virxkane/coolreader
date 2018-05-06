@@ -38,6 +38,7 @@
 #include "../include/hyphman.h"
 #include "../include/lvfnt.h"
 #include "../include/lvstring.h"
+#include "../include/lvstring16collection.h"
 #include "../include/crlog.h"
 
 

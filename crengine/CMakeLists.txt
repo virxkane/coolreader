@@ -18,6 +18,9 @@ src/crtest.cpp
 src/crlog.cpp
 src/crfilelogger.cpp
 src/serialbuf.cpp
+src/lvstring8collection.cpp
+src/lvstring16collection.cpp
+src/lvstring16hashedcollection.cpp
 )
 
 if ( NOT ${GUI} STREQUAL FB2PROPS )
