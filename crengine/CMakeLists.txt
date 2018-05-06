@@ -17,6 +17,7 @@ src/txtselector.cpp
 src/crtest.cpp
 src/crlog.cpp
 src/crfilelogger.cpp
+src/serialbuf.cpp
 )
 
 if ( NOT ${GUI} STREQUAL FB2PROPS )

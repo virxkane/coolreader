@@ -27,6 +27,7 @@
 
 #include "lvmemman.h"
 #include "lvstring.h"
+#include "serialbuf.h"
 #include "lstridmap.h"
 #include "lvxml.h"
 #include "dtddef.h"

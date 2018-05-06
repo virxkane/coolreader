@@ -70,7 +70,8 @@ CRENGINE_SRC_FILES := \
     ../../crengine/src/crconcurrent.cpp \
     ../../crengine/src/hist.cpp \
     ../../crengine/src/crlog.cpp \
-    ../../crengine/src/crfilelogger.cpp
+    ../../crengine/src/crfilelogger.cpp \
+    ../../crengine/src/serialbuf.cpp
 #    ../../crengine/src/cri18n.cpp
 #    ../../crengine/src/crgui.cpp \
 

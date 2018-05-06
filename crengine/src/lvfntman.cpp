@@ -24,6 +24,7 @@
 #include "../include/lvstyles.h"
 #include "../include/lvthread.h"
 #include "../include/crlog.h"
+#include "../include/serialbuf.h"
 
 // define to filter out all fonts except .ttf
 //#define LOAD_TTF_FONTS_ONLY

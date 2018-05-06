@@ -26,7 +26,7 @@
 #define UNICODE_HYPHEN   0x2010
 #define UNICODE_NB_HYPHEN   0x2011
 
-
+class SerialBuf;
 
 /// strlen for lChar16
 int lStr_len(const lChar16 * str);
@@ -802,8 +802,6 @@ public:
 /// calculates hash for wide c-string
 lUInt32 calcStringHash( const lChar16 * s );
 
-class SerialBuf;
-
 /// hashed wide string collection
 class lString16HashedCollection : public lString16Collection
 {
@@ -997,105 +995,6 @@ int TrimDoubleSpaces(lChar16 * buf, int len,  bool allowStartSpace, bool allowEn
 
 #define LCSTR(x) (UnicodeToUtf8(x).c_str())
 bool splitIntegerList( lString16 s, lString16 delim, int & value1, int & value2 );
-
-/// serialization/deserialization buffer
-class SerialBuf
-{
-	lUInt8 * _buf;
-	bool _ownbuf;
-	bool _error;
-    bool _autoresize;
-	int _size;
-	int _pos;
-public:
-    /// swap content of buffer with another buffer
-    void swap( SerialBuf & v );
-    /// constructor of serialization buffer
-	SerialBuf( int sz, bool autoresize = true );
-	SerialBuf( const lUInt8 * p, int sz );
-	~SerialBuf();
-
-    void set( lUInt8 * buf, int size )
-    {
-        if ( _buf && _ownbuf )
-            free( _buf );
-        _buf = buf;
-        _ownbuf = true;
-        _error = false;
-        _autoresize = true;
-        _size = _pos = size;
-    }
-    bool copyTo( lUInt8 * buf, int maxSize );
-    inline lUInt8 * buf() { return _buf; }
-    inline void setPos( int pos ) { _pos = pos; }
-	inline int space() const { return _size-_pos; }
-	inline int pos() const { return _pos; }
-	inline int size() const { return _size; }
-
-    /// returns true if error occured during one of operations
-	inline bool error() const { return _error; }
-
-    inline void seterror() { _error = true; }
-    /// move pointer to beginning, clear error flag
-    inline void reset() { _error = false; _pos = 0; }
-
-    /// checks whether specified number of bytes is available, returns true in case of error
-	bool check( int reserved );
-
-	// write methods
-    /// put magic signature
-	void putMagic( const char * s );
-
-    /// add CRC32 for last N bytes
-    void putCRC( int N );
-
-    /// returns CRC32 for the whole buffer
-    lUInt32 getCRC();
-
-    /// add contents of another buffer
-    SerialBuf & operator << ( const SerialBuf & v );
-
-	SerialBuf & operator << ( lUInt8 n );
-
-    SerialBuf & operator << ( char n );
-
-    SerialBuf & operator << ( bool n );
-
-    SerialBuf & operator << ( lUInt16 n );
-
-    SerialBuf & operator << ( lInt16 n );
-
-    SerialBuf & operator << ( lUInt32 n );
-
-    SerialBuf & operator << ( lInt32 n );
-
-    SerialBuf & operator << ( const lString16 & s );
-
-    SerialBuf & operator << ( const lString8 & s8 );
-
-    // read methods
-    SerialBuf & operator >> ( lUInt8 & n );
-
-    SerialBuf & operator >> ( char & n );
-
-	SerialBuf & operator >> ( bool & n );
-
-	SerialBuf & operator >> ( lUInt16 & n );
-
-	SerialBuf & operator >> ( lInt16 & n );
-
-    SerialBuf & operator >> ( lUInt32 & n );
-
-    SerialBuf & operator >> ( lInt32 & n );
-
-	SerialBuf & operator >> ( lString8 & s8 );
-
-	SerialBuf & operator >> ( lString16 & s );
-
-	bool checkMagic( const char * s );
-    /// read crc32 code, comapare with CRC32 for last N bytes
-    bool checkCRC( int N );
-};
 
 
 void free_ls_storage();
