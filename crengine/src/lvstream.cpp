@@ -28,6 +28,7 @@
 #include "../include/lvptrvec.h"
 #include "../include/crtxtenc.h"
 #include "../include/crlog.h"
+#include "../include/lvcrc32.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -310,7 +311,7 @@ lverror_t LVStream::getcrc32( lUInt32 & dst )
                 SetPos(savepos);
                 return LVERR_FAIL;
             }
-            dst = lStr_crc32( dst, buf, sz );
+            dst = lv_crc32( dst, buf, sz );
         }
         SetPos( savepos );
         return LVERR_OK;
@@ -2212,7 +2213,7 @@ private:
                     m_zstream.avail_in = 0;
                     return -1;
                 }
-                m_CRC = lStr_crc32( m_CRC, m_inbuf + tailpos, (int)(bytesRead) );
+                m_CRC = lv_crc32( m_CRC, m_inbuf + tailpos, (int)(bytesRead) );
                 m_zstream.avail_in += (int)bytesRead;
                 m_inbytesleft -= bytesRead;
             }

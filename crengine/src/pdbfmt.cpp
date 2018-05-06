@@ -1,5 +1,6 @@
 #include "../include/pdbfmt.h"
 #include "../include/crlog.h"
+#include "../include/lvcrc32.h"
 
 #include <ctype.h>
 
@@ -911,7 +912,7 @@ public:
             _records[k+1].unpoffset = unpoffset;
             _records[k+1].unpsize = buf.length();
             unpoffset += buf.length();
-            _crc = lStr_crc32( _crc, buf.get(), buf.length() );
+            _crc = lv_crc32( _crc, buf.get(), buf.length() );
         }
         _mobiExtraDataFlags = 0;
 

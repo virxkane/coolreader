@@ -12,23 +12,11 @@
 *******************************************************/
 
 #include "../include/lvstring.h"
+
 #include <stdlib.h>
 #include <assert.h>
-#include <string.h>
 #include <stdio.h>
 #include <stddef.h>
-#include <stdarg.h>
-#include <time.h>
-#ifdef LINUX
-#include <sys/time.h>
-#if !defined(__APPLE__)
-#include <malloc.h>
-#endif
-#endif
-
-#if (USE_ZLIB==1)
-#include <zlib.h>
-#endif
 
 #if !defined(__SYMBIAN32__) && defined(_WIN32)
 extern "C" {
@@ -1258,17 +1246,6 @@ lUInt32 lString16::getHash() const
     for (lInt32 i=0; i<pchunk->len; i++)
         res = res * STRING_HASH_MULT + pchunk->buf16[i];
     return res;
-}
-
-/// calculates CRC32 for buffer contents
-lUInt32 lStr_crc32( lUInt32 prevValue, const void * buf, int size )
-{
-#if (USE_ZLIB==1)
-    return crc32( prevValue, (const lUInt8 *)buf, size );
-#else
-    // TODO:
-    return 0;
-#endif
 }
 
 const lString16 lString16::empty_str;

@@ -21,6 +21,7 @@ src/serialbuf.cpp
 src/lvstring8collection.cpp
 src/lvstring16collection.cpp
 src/lvstring16hashedcollection.cpp
+src/lvcrc32.cpp
 )
 
 if ( NOT ${GUI} STREQUAL FB2PROPS )

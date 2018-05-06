@@ -14,7 +14,6 @@
 #define __LV_STRING_H_INCLUDED__
 
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
 #include "lvtypes.h"
 #include "lvmemman.h"
@@ -66,8 +65,6 @@ int    lStr_cmp(const lChar8 * str1, const lChar8 * str2);
 void lStr_uppercase( lChar16 * str, int len );
 /// convert string to lowercase
 void lStr_lowercase( lChar16 * str, int len );
-/// calculates CRC32 for buffer contents
-lUInt32 lStr_crc32( lUInt32 prevValue, const void * buf, int size );
 
 // converts 0..15 to 0..f
 char toHexDigit( int c );

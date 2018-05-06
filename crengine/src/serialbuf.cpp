@@ -15,6 +15,7 @@
 
 #include "../include/serialbuf.h"
 #include "../include/lvstring.h"
+#include "../include/lvcrc32.h"
 
 /// constructor of serialization buffer
 SerialBuf::SerialBuf( int sz, bool autoresize )
@@ -86,7 +87,7 @@ void SerialBuf::putCRC( int size )
         seterror();
     }
     lUInt32 n = 0;
-    n = lStr_crc32( n, _buf + _pos-size, size );
+    n = lv_crc32( n, _buf + _pos-size, size );
     *this << n;
 }
 
@@ -96,7 +97,7 @@ lUInt32 SerialBuf::getCRC()
     if (error())
         return 0;
     lUInt32 n = 0;
-    n = lStr_crc32( n, _buf, _pos );
+    n = lv_crc32( n, _buf, _pos );
     return n;
 }
 
@@ -110,7 +111,7 @@ bool SerialBuf::checkCRC( int size )
         return false;
     }
     lUInt32 n0 = 0;
-    n0 = lStr_crc32(n0, _buf + _pos-size, size);
+    n0 = lv_crc32(n0, _buf + _pos-size, size);
     lUInt32 n = 0;
     *this >> n;
     if ( error() )
