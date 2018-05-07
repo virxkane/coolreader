@@ -1327,10 +1327,10 @@ LVCssSelector::LVCssSelector( LVCssSelector & v )
 void LVStyleSheet::set(LVPtrVector<LVCssSelector> & v  )
 {
     _selectors.clear();
-    if ( !v.size() )
+    if ( !v.length() )
         return;
-    _selectors.reserve( v.size() );
-    for ( int i=0; i<v.size(); i++ ) {
+    _selectors.reserve( v.length() );
+    for ( int i=0; i<v.length(); i++ ) {
         LVCssSelector * selector = v[i];
         if ( selector )
             _selectors.add( new LVCssSelector( *selector ) );

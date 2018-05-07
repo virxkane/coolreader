@@ -25,6 +25,10 @@
 #include <unistd.h>
 #endif
 
+#if FOR_ANDROID == 0
+#include <stdexcept>
+#endif
+
 static char file_to_remove_on_crash[2048] = "";
 
 void crSetFileToRemoveOnFatalError(const char * filename) {
@@ -139,6 +143,12 @@ void crSetSignalHandler()
 void lvDefFatalErrorHandler (int errorCode, const char * errorText )
 {
     fprintf( stderr, "FATAL ERROR #%d: %s\n", errorCode, errorText );
+#if FOR_ANDROID == 0
+	// for debug purporse
+	char what[128];
+	sprintf(what, "FATAL ERROR #%d: %s\n", errorCode, errorText);
+	throw std::runtime_error(what);
+#endif
     exit( errorCode );
 }
 

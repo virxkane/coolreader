@@ -16,6 +16,7 @@
 #include "../include/lvtinydom.h"
 #include "../include/fb2def.h"
 #include "../include/lvrend.h"
+//#include "../include/lvmatrix.h"
 #include "../include/crlog.h"
 
 
@@ -214,7 +215,7 @@ public:
     LVPtrVector<CCRTableRow> rows;
     LVPtrVector<CCRTableCol> cols;
     LVPtrVector<CCRTableRowGroup> rowgroups;
-    LVMatrix<CCRTableCell*> cells;
+    //LVMatrix<CCRTableCell*> cells;
     CCRTableRowGroup * currentRowGroup;
 
     void ExtendCols( int ncols ) {
@@ -454,18 +455,18 @@ public:
             rows.insert(i, nrow);
         }
         // init CELLS matrix
-        cells.SetSize( rows.length(), cols.length(), NULL );
+        //cells.SetSize( rows.length(), cols.length(), NULL );
         for (i=0; i<rows.length(); i++) {
             for (j=0; j<rows[i]->cells.length(); j++) {
                 // init cell range in matrix  (x0,y0)[colspanXrowspan]
                 CCRTableCell * cell = (rows[i]->cells[j]);
                 int x0 = cell->col->index;
-                int y0 = cell->row->index;
-                for (int y=0; y<cell->rowspan; y++) {
-                    for (int x=0; x<cell->colspan; x++) {
-                        cells[y0+y][x0+x] = cell;
-                    }
-                }
+                //int y0 = cell->row->index;
+                //for (int y=0; y<cell->rowspan; y++) {
+                //    for (int x=0; x<cell->colspan; x++) {
+                //        cells[y0+y][x0+x] = cell;
+                //    }
+                //}
 
                 // calc cell text size
                 lString16 txt = (cell->elem)->getText();
