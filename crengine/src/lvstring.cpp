@@ -213,12 +213,11 @@ struct lstring_chunk_slice_t {
 //#define FIRST_SLICE_SIZE 256
 //#define MAX_SLICE_COUNT  20
 #if (LDOM_USE_OWN_MEM_MAN == 1)
+
 static lstring_chunk_slice_t * slices[MAX_SLICE_COUNT];
 static int slices_count = 0;
 static bool slices_initialized = false;
-#endif
 
-#if (LDOM_USE_OWN_MEM_MAN == 1)
 static void init_ls_storage()
 {
     slices[0] = new lstring_chunk_slice_t( FIRST_SLICE_SIZE );
@@ -293,7 +292,7 @@ void lstring16_chunk_t::free( lstring16_chunk_t * pChunk )
     }
     crFatalError(); // wrong pointer!!!
 }
-#endif
+#endif	// (LDOM_USE_OWN_MEM_MAN == 1)
 
 ////////////////////////////////////////////////////////////////////////////
 // Utility functions

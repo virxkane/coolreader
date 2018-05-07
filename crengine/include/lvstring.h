@@ -118,9 +118,11 @@ private:
 
     lstring8_chunk_t() {}
 
+#if (LDOM_USE_OWN_MEM_MAN == 1)
     // chunk allocation functions
     static lstring8_chunk_t * alloc();
     static void free( lstring8_chunk_t * pChunk );
+#endif
 
 };
 
@@ -139,9 +141,11 @@ private:
 
     lstring16_chunk_t() {}
 
+#if (LDOM_USE_OWN_MEM_MAN == 1)
     // chunk allocation functions
     static lstring16_chunk_t * alloc();
     static void free( lstring16_chunk_t * pChunk );
+#endif
 };
 
 
