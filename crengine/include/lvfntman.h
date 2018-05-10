@@ -20,7 +20,7 @@
 #include "lvfnt.h"
 #include "cssdef.h"
 #include "lvstring.h"
-#include "lvref.h"
+#include "lvprotectedfastref.h"
 #include "lvptrvec.h"
 #include "hyphman.h"
 #include "lvdrawbuf.h"

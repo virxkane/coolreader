@@ -18,7 +18,8 @@
 #include "lvtypes.h"
 #include "lvarray.h"
 #include "lvptrvec.h"
-#include "lvref.h"
+#include "lvrefcounter.h"
+#include "lvfastref.h"
 #include "lvstring.h"
 #include "lvhashtable.h"
 

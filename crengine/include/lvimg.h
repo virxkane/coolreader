@@ -15,7 +15,7 @@
 #define __LVIMG_H_INCLUDED__
 
 
-#include "lvref.h"
+#include "lvrefvec.h"
 #include "lvstream.h"
 
 class CacheableObject;
