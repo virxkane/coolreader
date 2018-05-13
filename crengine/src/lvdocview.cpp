@@ -932,7 +932,10 @@ LVStreamRef LVDocView::getCoverPageImageStream() {
 	lUInt16 path[] = { el_FictionBook, el_description, el_title_info,
 			el_coverpage, 0 };
 	//lUInt16 path[] = { el_FictionBook, el_description, el_title_info, el_coverpage, el_image, 0 };
-	ldomNode * cover_el = m_doc->getRootNode()->findChildElement(path);
+	ldomNode * rootNode = m_doc->getRootNode();
+	ldomNode * cover_el = NULL;
+	if (rootNode)
+		cover_el = rootNode->findChildElement(path);
 	//ldomNode * cover_img_el = m_doc->getRootNode()->findChildElement( path );
 
 	if (cover_el) {
@@ -956,7 +959,10 @@ LVImageSourceRef LVDocView::getCoverPageImage() {
 	lUInt16 path[] = { el_FictionBook, el_description, el_title_info,
 			el_coverpage, 0 };
 	//lUInt16 path[] = { el_FictionBook, el_description, el_title_info, el_coverpage, el_image, 0 };
-	ldomNode * cover_el = m_doc->getRootNode()->findChildElement(path);
+	ldomNode * rootNode = m_doc->getRootNode();
+	ldomNode * cover_el = NULL;
+	if (rootNode)
+		cover_el = rootNode->findChildElement(path);
 	//ldomNode * cover_img_el = m_doc->getRootNode()->findChildElement( path );
 
 	if (cover_el) {
@@ -4329,7 +4335,10 @@ bool LVDocView::ParseDocument() {
 
 		if (m_doc_format == doc_format_html) {
 			static lUInt16 path[] = { el_html, el_head, el_title, 0 };
-			ldomNode * el = m_doc->getRootNode()->findChildElement(path);
+			ldomNode * rootNode = m_doc->getRootNode();
+			ldomNode * el = NULL;
+			if (rootNode)
+				el = rootNode->findChildElement(path);
 			if (el != NULL) {
                 lString16 s = el->getText(L' ', 1024);
 				if (!s.empty()) {

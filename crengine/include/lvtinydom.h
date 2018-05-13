@@ -677,7 +677,7 @@ public:
     void destroy();
 
     /// returns true for invalid/deleted node ot NULL this pointer
-    inline bool isNull() const { return this == NULL || _handle._dataIndex==0; }
+    inline bool isNull() const { return _handle._dataIndex==0; }
     /// returns true if node is stored in persistent storage
     inline bool isPersistent() const { return (_handle._dataIndex&2)!=0; }
     /// returns data index of node's registration in document data storage
@@ -1279,7 +1279,7 @@ public:
     /// returns true for NULL pointer
 	bool isNull() const
 	{
-        return !this || !_data || _data->isNull();
+        return !_data || _data->isNull();
 	}
     /// returns true if object is pointer
 	bool isPointer() const

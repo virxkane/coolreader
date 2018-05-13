@@ -5140,7 +5140,7 @@ bool ldomXPointer::getRect(lvRect & rect) const
 ldomXPointer ldomDocument::createXPointer( ldomNode * baseNode, const lString16 & xPointerStr )
 {
     //CRLog::trace( "ldomDocument::createXPointer(%s)", UnicodeToUtf8(xPointerStr).c_str() );
-    if ( xPointerStr.empty() )
+    if ( xPointerStr.empty() || !baseNode)
         return ldomXPointer();
     const lChar16 * str = xPointerStr.c_str();
     int index = -1;
@@ -5166,7 +5166,9 @@ ldomXPointer ldomDocument::createXPointer( ldomNode * baseNode, const lString16 
                 ldomNode * foundItem = currNode->findChildElement(LXML_NS_ANY, id, index > 0 ? index - 1 : -1);
                 if (foundItem == NULL && currNode->getChildCount() == 1) {
                     // make saved pointers work properly even after moving of some part of path one element deeper
-                    foundItem = currNode->getChildNode(0)->findChildElement(LXML_NS_ANY, id, index > 0 ? index - 1 : -1);
+					ldomNode* node0 = currNode->getChildNode(0);
+					if (node0)
+						foundItem = node0->findChildElement(LXML_NS_ANY, id, index > 0 ? index - 1 : -1);
                 }
 //                int foundCount = 0;
 //                for (unsigned i=0; i<currNode->getChildCount(); i++) {
@@ -10779,7 +10781,7 @@ ldomNode * ldomNode::findChildElement( lUInt16 nsid, lUInt16 id, int index )
 ldomNode * ldomNode::findChildElement( lUInt16 idPath[] )
 {
     ASSERT_NODE_NOT_NULL;
-    if ( !this || !isElement() )
+    if ( !isElement() )
         return NULL;
     ldomNode * elem = this;
     for ( int i=0; idPath[i]; i++ ) {
@@ -10986,7 +10988,7 @@ public:
 /// returns object image ref name
 lString16 ldomNode::getObjectImageRefName()
 {
-    if ( !this || !isElement() )
+    if ( !isElement() )
         return lString16::empty_str;
     //printf("ldomElement::getObjectImageSource() ... ");
     const css_elem_def_props_t * et = getDocument()->getElementTypePtr(getNodeId());
