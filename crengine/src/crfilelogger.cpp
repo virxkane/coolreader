@@ -9,8 +9,6 @@
    GNU General Public License
    See LICENSE file for details
 
-    Refactoring by virxkane, 2018
-
 *******************************************************/
 
 #include "../include/crfilelogger.h"

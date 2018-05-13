@@ -8,8 +8,6 @@
 	GNU General Public License.
 
 	See LICENSE file for details.
-
-	Refactoring by virxkane, 2018
 */
 
 #ifndef __CR_LOG_H_INCLUDED__

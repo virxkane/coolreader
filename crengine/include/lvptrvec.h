@@ -11,8 +11,6 @@
 
 	See LICENSE file for details.
 
-	Refactoring by virxkane, 2018
-
 */
 
 #ifndef __LVPTRVEC_H_INCLUDED__
