@@ -71,7 +71,4 @@ extern CRMutex * _crengineMutex;
 // use CRENGINE_GUARD to acquire crengine drawing lock
 #define CRENGINE_GUARD CRGuard _crengineGuard(_crengineMutex); CR_UNUSED(_crengineMutex);
 
-/// call to create mutexes for different parts of CoolReader engine
-void CRSetupEngineConcurrency();
-
 #endif // CRLOCKS_H

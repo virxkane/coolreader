@@ -3,8 +3,7 @@
 
 #include "crlocks.h"
 
-
-#include "lvref.h"
+#include "lvtypes.h"
 #include "lvqueue.h"
 
 
@@ -46,5 +45,8 @@ public:
     virtual void run();
 };
 
+/// call to create mutexes for different parts of CoolReader engine
+/// For now no one call this function, then all of this file and crlocks.{h,cpp} is useless...
+void CRSetupEngineConcurrency();
 
 #endif // CRCONCURRENT_H
