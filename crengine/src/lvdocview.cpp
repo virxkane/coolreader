@@ -2461,6 +2461,8 @@ int LVDocView::getCurrentPageImageCount()
 {
     CHECK_RENDER("getCurPageImgCount()")
     LVRef<ldomXRange> range = getPageDocumentRange(-1);
+    if (range.isNull())
+        return 0;
     class ImageCounter : public ldomNodeCallback {
         int count;
     public:
@@ -2488,7 +2490,8 @@ lString16 LVDocView::getPageText(bool, int pageIndex) {
     CHECK_RENDER("getPageText()")
 	lString16 txt;
 	LVRef < ldomXRange > range = getPageDocumentRange(pageIndex);
-	txt = range->getRangeText();
+    if (!range.isNull())
+	    txt = range->getRangeText();
 	return txt;
 }
 
@@ -5424,7 +5427,7 @@ int LVDocView::onSelectionCommand( int cmd, int param )
     bool moved = false;
     bool makeSelStartVisible = true; // true: start, false: end
     if ( !currSel.isNull() && cmd == DCMD_SELECT_FIRST_SENTENCE
-            && !pageRange->isInside(currSel.getStart()) && !pageRange->isInside(currSel.getEnd()) )
+            &&  !pageRange.isNull() && !pageRange->isInside(currSel.getStart()) && !pageRange->isInside(currSel.getEnd()) )
         currSel.clear();
     if ( currSel.isNull() || currSel.getStart().isNull() ) {
         // select first sentence on page
