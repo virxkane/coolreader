@@ -39,12 +39,14 @@ if ( NOT ${GUI} STREQUAL FB2PROPS )
     src/lvtextfm.cpp
     src/lvrend.cpp
     src/wolutil.cpp
-    src/hist.cpp      
     src/chmfmt.cpp     
     src/epubfmt.cpp     
     src/pdbfmt.cpp     
     src/wordfmt.cpp     
     src/crconcurrent.cpp
+    src/crbookmark.cpp
+    src/crfilehist.cpp
+    src/crfilehistrecord.cpp
     #src/xutils.cpp
     )
 endif (NOT ${GUI} STREQUAL FB2PROPS)

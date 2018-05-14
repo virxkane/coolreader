@@ -71,11 +71,13 @@ CRENGINE_SRC_FILES := \
     ../../crengine/src/lvrend.cpp \
     ../../crengine/src/wolutil.cpp \
     ../../crengine/src/crconcurrent.cpp \
-    ../../crengine/src/hist.cpp \
     ../../crengine/src/crlog.cpp \
     ../../crengine/src/crfilelogger.cpp \
     ../../crengine/src/serialbuf.cpp \
-    ../../crengine/src/lvcrc32.cpp
+    ../../crengine/src/lvcrc32.cpp \
+    ../../crengine/src/crbookmark.cpp \
+    ../../crengine/src/crfilehistrecord.cpp \
+    ../../crengine/src/crfilehist.cpp
 #    ../../crengine/src/cri18n.cpp
 #    ../../crengine/src/crgui.cpp \
 

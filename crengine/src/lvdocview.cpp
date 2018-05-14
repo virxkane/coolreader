@@ -15,6 +15,7 @@
 #include "../include/fb2def.h"
 #include "../include/lvdocview.h"
 #include "../include/rtfimp.h"
+#include "crfilehistrecord.h"
 
 #include "../include/lvstyles.h"
 #include "../include/lvrend.h"
