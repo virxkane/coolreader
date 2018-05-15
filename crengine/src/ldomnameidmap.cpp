@@ -11,86 +11,9 @@
 
 *******************************************************/
 
-#include "../include/lstridmap.h"
-#include "../include/dtddef.h"
-#include "../include/lvtinydom.h"
+#include "../include/ldomnameidmap.h"
+
 #include <string.h>
-
-LDOMNameIdMapItem::LDOMNameIdMapItem(lUInt16 _id, const lString16 & _value, const css_elem_def_props_t * _data)
-    : id(_id), value(_value)
-{
-	if ( _data ) {
-        data = new css_elem_def_props_t();
-		*data = *_data;
-	} else
-		data = NULL;
-}
-
-LDOMNameIdMapItem::LDOMNameIdMapItem(LDOMNameIdMapItem & item)
-    : id(item.id), value(item.value)
-{
-	if ( item.data ) {
-		data = new css_elem_def_props_t();
-		*data = *item.data;
-	} else {
-		data = NULL;
-	}
-}
-
-
-static const char id_map_item_magic[] = "IDMI";
-
-/// serialize to byte array
-void LDOMNameIdMapItem::serialize( SerialBuf & buf )
-{
-    if ( buf.error() )
-        return;
-	buf.putMagic( id_map_item_magic );
-	buf << id;
-	buf << value;
-	if ( data ) {
-		buf << (lUInt8)1;
-		buf << (lUInt8)data->display;
-		buf << (lUInt8)data->white_space;
-		buf << data->allow_text;
-		buf << data->is_object;
-	} else {
-		buf << (lUInt8)0;
-	}
-}
-
-/// deserialize from byte array
-LDOMNameIdMapItem * LDOMNameIdMapItem::deserialize( SerialBuf & buf )
-{
-    if ( buf.error() )
-        return NULL;
-	if ( !buf.checkMagic( id_map_item_magic ) )
-        return NULL;
-	lUInt16 id;
-	lString16 value;
-	lUInt8 flgData;
-    buf >> id >> value >> flgData;
-    if ( id>=MAX_TYPE_ID )
-        return NULL;
-    if ( flgData ) {
-        css_elem_def_props_t props;
-        lUInt8 display;
-        lUInt8 white_space;
-        buf >> display >> white_space >> props.allow_text >> props.is_object;
-        if ( display > css_d_none || white_space > css_ws_nowrap )
-            return NULL;
-        props.display = (css_display_t)display;
-        props.white_space = (css_white_space_t)white_space;
-    	return new LDOMNameIdMapItem(id, value, &props);
-    }
-   	return new LDOMNameIdMapItem(id, value, NULL);
-}
-
-LDOMNameIdMapItem::~LDOMNameIdMapItem()
-{
-	if ( data )
-		delete data;
-}
 
 static const char id_map_magic[] = "IMAP";
 
@@ -137,7 +60,8 @@ bool LDOMNameIdMap::deserialize( SerialBuf & buf )
             buf.seterror();
             return false;
         }
-        AddItem( item );
+        if (!AddItem( item ))
+            delete item;
     }
     m_sorted = false;
     buf.checkCRC( buf.pos() - start );
@@ -253,21 +177,31 @@ const LDOMNameIdMapItem * LDOMNameIdMap::findItem( const lChar8 * name )
     }
 }
 
-void LDOMNameIdMap::AddItem( LDOMNameIdMapItem * item )
+bool LDOMNameIdMap::AddItem( LDOMNameIdMapItem *item )
 {
     if ( item==NULL )
-        return;
+        return false;
     if ( item->id==0 ) {
-        delete item;
-        return;
+        return false;
     }
     if (item->id>=m_size)
     {
         // reallocate storage
         lUInt16 newsize = item->id+16;
-        m_by_id = (LDOMNameIdMapItem **)realloc( m_by_id, sizeof(LDOMNameIdMapItem *)*newsize );
-        m_by_name = (LDOMNameIdMapItem **)realloc( m_by_name, sizeof(LDOMNameIdMapItem *)*newsize );
-        for (lUInt16 i = m_size; i<newsize; i++)
+        // We alloc memory using operator `new' (array of pointers),
+        // then using realloc() to increase memory allocation is not good idea.
+        lUInt16 i;
+        LDOMNameIdMapItem ** new_by_id = new LDOMNameIdMapItem * [newsize];
+        LDOMNameIdMapItem ** new_by_name = new LDOMNameIdMapItem * [newsize];
+        for (i = 0; i < m_size; i++) {
+            new_by_id[i] = m_by_id[i];
+            new_by_name[i] = m_by_name[i];
+        }
+        delete [] m_by_id;
+        delete [] m_by_name;
+        m_by_id = new_by_id;
+        m_by_name = new_by_name;
+        for (i = m_size; i<newsize; i++)
         {
             m_by_id[i] = NULL;
             m_by_name[i] = NULL;
@@ -276,8 +210,7 @@ void LDOMNameIdMap::AddItem( LDOMNameIdMapItem * item )
     }
     if (m_by_id[item->id] != NULL)
     {
-        delete item;
-        return; // already exists
+        return false; // already exists
     }
     m_by_id[item->id] = item;
     m_by_name[m_count++] = item;
@@ -286,6 +219,7 @@ void LDOMNameIdMap::AddItem( LDOMNameIdMapItem * item )
         m_changed = true;
         //CRLog::trace("new ID for %s is %d", LCSTR(item->value), item->id);
     }
+    return true;
 }
 
 void LDOMNameIdMap::AddItem( lUInt16 id, const lString16 & value, const css_elem_def_props_t * data )
@@ -293,7 +227,8 @@ void LDOMNameIdMap::AddItem( lUInt16 id, const lString16 & value, const css_elem
     if (id==0)
         return;
     LDOMNameIdMapItem * item = new LDOMNameIdMapItem( id, value, data );
-    AddItem( item );
+    if (!AddItem( item ))
+        delete item;
 }
 
 
@@ -319,4 +254,3 @@ void LDOMNameIdMap::dumpUnknownItems( FILE * f, int start_id )
         }
     }
 }
-

@@ -29,7 +29,7 @@
 #include "lvstring.h"
 #include "lvstring16hashedcollection.h"
 #include "serialbuf.h"
-#include "lstridmap.h"
+#include "ldomnameidmap.h"
 #include "lvxml.h"
 #include "dtddef.h"
 #include "lvstyles.h"

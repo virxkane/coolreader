@@ -2,7 +2,6 @@ SET (CRENGINE_SOURCES
 src/cp_stats.cpp  
 src/lvstring.cpp  
 src/props.cpp
-src/lstridmap.cpp  
 src/rtfimp.cpp
 src/cri18n.cpp    
 src/lvmemman.cpp        
@@ -22,6 +21,8 @@ src/lvstring8collection.cpp
 src/lvstring16collection.cpp
 src/lvstring16hashedcollection.cpp
 src/lvcrc32.cpp
+src/ldomnameidmapitem.cpp
+src/ldomnameidmap.cpp
 )
 
 if ( NOT ${GUI} STREQUAL FB2PROPS )
