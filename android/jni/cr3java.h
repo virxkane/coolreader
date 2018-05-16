@@ -17,6 +17,7 @@
 
 #include "../../crengine/include/lvstring.h"
 #include "../../crengine/include/lvdrawbuf.h"
+#include "../../crengine/include/lvcolordrawbuf.h"
 #include "../../crengine/include/props.h"
 #include "../../crengine/include/lvtinydom.h"
 

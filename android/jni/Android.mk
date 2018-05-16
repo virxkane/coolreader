@@ -66,6 +66,9 @@ CRENGINE_SRC_FILES := \
     ../../crengine/src/lvimg.cpp \
     ../../crengine/src/crskin.cpp \
     ../../crengine/src/lvdrawbuf.cpp \
+    ../../crengine/src/lvbasedrawbuf.cpp \
+    ../../crengine/src/lvgraydrawbuf.cpp \
+    ../../crengine/src/lvcolordrawbuf.cpp \
     ../../crengine/src/lvdocview.cpp \
     ../../crengine/src/lvpagesplitter.cpp \
     ../../crengine/src/lvtextfm.cpp \

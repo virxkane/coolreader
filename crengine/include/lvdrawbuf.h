@@ -35,6 +35,17 @@ enum cr_rotate_angle_t {
     CR_ROTATE_ANGLE_270
 };
 
+enum DrawBufPixelFormat
+{
+	DRAW_BUF_1_BPP = 1, /// 1 bpp, 8 pixels per byte packed
+	DRAW_BUF_2_BPP = 2, /// 2 bpp, 4 pixels per byte packed
+	DRAW_BUF_3_BPP = 3, /// 3 bpp, 1 pixel per byte, higher 3 bits are significant
+	DRAW_BUF_4_BPP = 4, /// 4 bpp, 1 pixel per byte, higher 4 bits are significant
+	DRAW_BUF_8_BPP = 8, /// 8 bpp, 1 pixel per byte, all 8 bits are significant
+	DRAW_BUF_16_BPP = 16, /// color 16bit RGB 565
+	DRAW_BUF_32_BPP = 32  /// color 32bit RGB 888
+};
+
 class LVFont;
 class GLDrawBuf; // workaround for no-rtti builds
 
@@ -212,169 +223,12 @@ public:
     virtual GLDrawBuf * asGLDrawBuf() { return NULL; }
 };
 
-/// LVDrawBufferBase
-class LVBaseDrawBuf : public LVDrawBuf
-{
-protected:
-    int _dx;
-    int _dy;
-    int _rowsize;
-    lvRect _clip;
-    unsigned char * _data;
-    lUInt32 _backgroundColor;
-    lUInt32 _textColor;
-    bool _hidePartialGlyphs;
-public:
-    virtual void setHidePartialGlyphs( bool hide ) { _hidePartialGlyphs = hide; }
-    /// returns current background color
-    virtual lUInt32 GetBackgroundColor() { return _backgroundColor; }
-    /// sets current background color
-    virtual void SetBackgroundColor( lUInt32 cl ) { _backgroundColor=cl; }
-    /// returns current text color
-    virtual lUInt32 GetTextColor() { return _textColor; }
-    /// sets current text color
-    virtual void SetTextColor( lUInt32 cl ) { _textColor = cl; }
-    /// gets clip rect
-    virtual void GetClipRect( lvRect * clipRect ) { *clipRect = _clip; }
-    /// sets clip rect
-    virtual void SetClipRect( const lvRect * clipRect );
-    /// get average pixel value for area (coordinates are fixed floating points *16)
-    virtual lUInt32 GetAvgColor(lvRect & rc16);
-    /// get linearly interpolated pixel value (coordinates are fixed floating points *16)
-    virtual lUInt32 GetInterpolatedColor(int x16, int y16);
-    /// get buffer width, pixels
-    virtual int  GetWidth();
-    /// get buffer height, pixels
-    virtual int  GetHeight();
-    /// get row size (bytes)
-    virtual int  GetRowSize() { return _rowsize; }
-    /// draws text string
-    /*
-    virtual void DrawTextString( int x, int y, LVFont * pfont,
-                       const lChar16 * text, int len, 
-                       lChar16 def_char, 
-                       lUInt32 * palette, bool addHyphen=false );
-    */
-    /// draws formatted text
-    //virtual void DrawFormattedText( formatted_text_fragment_t * text, int x, int y );
-    
-    LVBaseDrawBuf() : _dx(0), _dy(0), _rowsize(0), _data(NULL), _hidePartialGlyphs(true) { }
-    virtual ~LVBaseDrawBuf() { }
-};
-
-/// use to simplify saving draw buffer state
-class LVDrawStateSaver
-{
-    LVDrawBuf & _buf;
-    lUInt32 _textColor;
-    lUInt32 _backgroundColor;
-    int _alpha;
-    lvRect _clipRect;
-	LVDrawStateSaver & operator = (LVDrawStateSaver &) {
-		// no assignment
-        return *this;
-	}
-public:
-    /// save settings
-    LVDrawStateSaver( LVDrawBuf & buf )
-    : _buf( buf )
-    , _textColor( buf.GetTextColor() )
-    , _backgroundColor( buf.GetBackgroundColor() )
-    , _alpha(buf.getAlpha())
-    {
-        _buf.GetClipRect( &_clipRect );
-    }
-    void restore()
-    {
-        _buf.SetTextColor( _textColor );
-        _buf.SetBackgroundColor( _backgroundColor );
-        _buf.setAlpha(_alpha);
-        _buf.SetClipRect( &_clipRect );
-    }
-    /// restore settings on destroy
-    ~LVDrawStateSaver()
-    {
-        restore();
-    }
-};
-
-#define SAVE_DRAW_STATE( buf ) LVDrawStateSaver drawBufSaver( buf )
-
-enum DrawBufPixelFormat
-{
-    DRAW_BUF_1_BPP = 1, /// 1 bpp, 8 pixels per byte packed
-    DRAW_BUF_2_BPP = 2, /// 2 bpp, 4 pixels per byte packed
-    DRAW_BUF_3_BPP = 3, /// 3 bpp, 1 pixel per byte, higher 3 bits are significant
-    DRAW_BUF_4_BPP = 4, /// 4 bpp, 1 pixel per byte, higher 4 bits are significant
-    DRAW_BUF_8_BPP = 8, /// 8 bpp, 1 pixel per byte, all 8 bits are significant
-    DRAW_BUF_16_BPP = 16, /// color 16bit RGB 565
-    DRAW_BUF_32_BPP = 32  /// color 32bit RGB 888
-};
-
-/**
- * 2-bit gray bitmap buffer, partial support for 1-bit buffer
- * Supported pixel formats for LVGrayDrawBuf :
- *    1 bpp, 8 pixels per byte packed
- *    2 bpp, 4 pixels per byte packed
- *    3 bpp, 1 pixel per byte, higher 3 bits are significant
- *    4 bpp, 1 pixel per byte, higher 4 bits are significant
- *    8 bpp, 1 pixel per byte, all 8 bits are significant
- *
- */
-class LVGrayDrawBuf : public LVBaseDrawBuf
-{
-private:
-    int _bpp;
-    bool _ownData;
-public:
-    /// rotates buffer contents by specified angle
-    virtual void Rotate( cr_rotate_angle_t angle );
-    /// returns white pixel value
-    virtual lUInt32 GetWhiteColor();
-    /// returns black pixel value
-    virtual lUInt32 GetBlackColor();
-    /// draws buffer content to another buffer doing color conversion if necessary
-    virtual void DrawTo( LVDrawBuf * buf, int x, int y, int options, lUInt32 * palette );
-    /// draws rescaled buffer content to another buffer doing color conversion if necessary
-    virtual void DrawRescaled(LVDrawBuf * src, int x, int y, int dx, int dy, int options);
-#if !defined(__SYMBIAN32__) && defined(_WIN32) && !defined(QT_GL)
-    /// draws buffer content to another buffer doing color conversion if necessary
-    virtual void DrawTo( HDC dc, int x, int y, int options, lUInt32 * palette );
-#endif
-    /// invert image
-    virtual void  Invert();
-    /// get buffer bits per pixel
-    virtual int  GetBitsPerPixel();
-    /// returns scanline pointer
-    virtual lUInt8 * GetScanLine( int y );
-    /// fills buffer with specified color
-    virtual void Clear( lUInt32 color );
-    /// get pixel value
-    virtual lUInt32 GetPixel( int x, int y );
-    /// fills rectangle with specified color
-    virtual void FillRect( int x0, int y0, int x1, int y1, lUInt32 color );
-    /// inverts image in specified rectangle
-    virtual void InvertRect( int x0, int y0, int x1, int y1 );
-    /// fills rectangle with pattern
-    virtual void FillRectPattern( int x0, int y0, int x1, int y1, lUInt32 color0, lUInt32 color1, lUInt8 * pattern );
-    /// sets new size
-    virtual void Resize( int dx, int dy );
-    /// draws image
-    virtual void Draw( LVImageSourceRef img, int x, int y, int width, int height, bool dither );
-    /// draws bitmap (1 byte per pixel) using specified palette
-    virtual void Draw( int x, int y, const lUInt8 * bitmap, int width, int height, lUInt32 * palette );
-    /// constructor
-    LVGrayDrawBuf(int dx, int dy, int bpp=2, void * auxdata = NULL );
-    /// destructor
-    virtual ~LVGrayDrawBuf();
-    /// convert to 1-bit bitmap
-    void ConvertToBitmap(bool flgDither);
-};
-
+#if 0
 inline lUInt32 RevRGB( lUInt32 cl )
 {
     return ((cl>>16)&255) | ((cl<<16)&0xFF0000) | (cl&0x00FF00);
 }
+#endif
 
 inline lUInt32 rgb565to888(lUInt32 cl ) {
     return ((cl & 0xF800)<<8) | ((cl & 0x07E0)<<5) | ((cl & 0x001F)<<3);
@@ -384,69 +238,20 @@ inline lUInt16 rgb888to565(lUInt32 cl ) {
     return (lUInt16)(((cl>>8)& 0xF800) | ((cl>>5 )& 0x07E0) | ((cl>>3 )& 0x001F));
 }
 
-/// 32-bit RGB buffer
-class LVColorDrawBuf : public LVBaseDrawBuf
-{
-private:
-#if !defined(__SYMBIAN32__) && defined(_WIN32) && !defined(QT_GL)
-    HDC _drawdc;
-    HBITMAP _drawbmp;
-#endif
-    int _bpp;
-    bool _ownData;
-public:
-    /// rotates buffer contents by specified angle
-    virtual void Rotate( cr_rotate_angle_t angle );
-    /// returns white pixel value
-    virtual lUInt32 GetWhiteColor();
-    /// returns black pixel value
-    virtual lUInt32 GetBlackColor();
-    /// draws buffer content to another buffer doing color conversion if necessary
-    virtual void DrawTo( LVDrawBuf * buf, int x, int y, int options, lUInt32 * palette );
-    /// draws rescaled buffer content to another buffer doing color conversion if necessary
-    virtual void DrawRescaled(LVDrawBuf * src, int x, int y, int dx, int dy, int options);
-#if !defined(__SYMBIAN32__) && defined(_WIN32) && !defined(QT_GL)
-    /// draws buffer content to another buffer doing color conversion if necessary
-    virtual void DrawTo( HDC dc, int x, int y, int options, lUInt32 * palette );
-#endif
-    /// invert image
-    virtual void  Invert();
-    /// get buffer bits per pixel
-    virtual int  GetBitsPerPixel();
-    /// fills buffer with specified color
-    virtual void Clear( lUInt32 color );
-    /// get pixel value
-    virtual lUInt32 GetPixel( int x, int y );
-    /// fills rectangle with specified color
-    virtual void FillRect( int x0, int y0, int x1, int y1, lUInt32 color );
-    /// fills rectangle with pattern
-    virtual void FillRectPattern( int x0, int y0, int x1, int y1, lUInt32 color0, lUInt32 color1, lUInt8 * pattern );
-    /// inverts specified rectangle
-	virtual void InvertRect( int x0, int y0, int x1, int y1 );
-    /// sets new size
-    virtual void Resize( int dx, int dy );
-    /// draws image
-    virtual void Draw( LVImageSourceRef img, int x, int y, int width, int height, bool dither );
-    /// draws bitmap (1 byte per pixel) using specified palette
-    virtual void Draw( int x, int y, const lUInt8 * bitmap, int width, int height, lUInt32 * palette );
-    /// returns scanline pointer
-    virtual lUInt8 * GetScanLine( int y );
+lUInt32 rgbToGray( lUInt32 color );
 
-    /// create own draw buffer
-    LVColorDrawBuf(int dx, int dy, int bpp=32);
-    /// creates wrapper around external RGBA buffer
-    LVColorDrawBuf(int dx, int dy, lUInt8 * externalBuffer, int bpp=32 );
-    /// destructor
-    virtual ~LVColorDrawBuf();
-    /// convert to 1-bit bitmap
-    void ConvertToBitmap(bool flgDither);
-#if !defined(__SYMBIAN32__) && defined(_WIN32) && !defined(QT_GL)
-    /// returns device context for bitmap buffer
-    HDC GetDC() { return _drawdc; }
-#endif
-};
+lUInt8 rgbToGray( lUInt32 color, int bpp );
 
+lUInt8 rgbToGrayMask( lUInt32 color, int bpp );
 
+void ApplyAlphaGray( lUInt8 &dst, lUInt8 src, lUInt32 alpha, int bpp );
 
-#endif
+void ApplyAlphaRGB( lUInt32 &dst, lUInt32 src, lUInt32 alpha );
 
+lUInt32 DitherNBitColor( lUInt32 color, lUInt32 x, lUInt32 y, int bits );
+
+lUInt32 Dither2BitColor( lUInt32 color, lUInt32 x, lUInt32 y );
+
+lUInt32 Dither1BitColor( lUInt32 color, lUInt32 x, lUInt32 y );
+
+#endif	// __LVDRAWBUF_H_INCLUDED__

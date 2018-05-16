@@ -23,7 +23,7 @@
 #include "lvtypes.h"
 #include "lvstring.h"
 #include "lvptrvec.h"
-#include "lvdrawbuf.h"
+#include "lvcolordrawbuf.h"
 #include "lvdocview.h"
 #include "crskin.h"
 

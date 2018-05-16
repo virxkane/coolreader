@@ -11,10 +11,12 @@
 
 *******************************************************/
 
-#include <stdlib.h>
 #include "../include/crskin.h"
+#include "../include/lvdrawstatesaver.h"
 #include "../include/lvstsheet.h"
 #include "../include/crtrace.h"
+
+#include <stdlib.h>
 
 // uncomment to trace skin XML access errors / not found elements
 //#define TRACE_SKIN_ERRORS

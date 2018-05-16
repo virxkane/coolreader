@@ -19,6 +19,7 @@
 #define XMD_H
 
 #include "../include/lvimg.h"
+#include "../include/lvcolordrawbuf.h"
 #include "../include/lvtinydom.h"
 #include "../include/crlog.h"
 

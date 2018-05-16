@@ -35,6 +35,9 @@ if ( NOT ${GUI} STREQUAL FB2PROPS )
     src/lvimg.cpp           
     src/crskin.cpp    
     src/lvdrawbuf.cpp  
+    src/lvbasedrawbuf.cpp  
+    src/lvgraydrawbuf.cpp  
+    src/lvcolordrawbuf.cpp  
     src/lvdocview.cpp  
     src/lvpagesplitter.cpp  
     src/lvtextfm.cpp

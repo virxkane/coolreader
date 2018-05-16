@@ -1,5 +1,6 @@
 #include "docview.h"
 #include "lvdocview.h"
+#include "lvgraydrawbuf.h"
 //#include "crgl.h"
 
 #if defined(__arm__)
