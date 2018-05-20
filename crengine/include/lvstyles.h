@@ -18,7 +18,7 @@
 #include "lvmemman.h"
 #include "lvrefcache.h"
 #include "lvtextfm.h"
-#include "lvfntman.h"
+#include "lvfont.h"
 #include "lvstring8collection.h"
 
 /**

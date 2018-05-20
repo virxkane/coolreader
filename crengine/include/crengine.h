@@ -144,7 +144,7 @@
 #include "lvstring.h"
 #include "lvarray.h"
 #include "lvbmpbuf.h"
-#include "lvfntman.h"
+#include "lvfontman.h"
 #include "lvstyles.h"
 #include "lvdocview.h"
 #include "lvstsheet.h"

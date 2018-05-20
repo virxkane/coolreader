@@ -281,6 +281,7 @@ static lUInt64 calcHash64( const lUInt8 * s, int len )
 lUInt32 calcGlobalSettingsHash(int documentId)
 {
     lUInt32 hash = FORMATTING_VERSION_ID;
+    LVFontManager* fontMan = LVFontManager::getInstance();
     if ( fontMan->getKerning() )
         hash += 127365;
     hash = hash * 31 + fontMan->GetFontListHash(documentId);
@@ -3055,7 +3056,7 @@ bool ldomDocument::saveToStream( LVStreamRef stream, const char *, bool treeLayo
 
 ldomDocument::~ldomDocument()
 {
-    fontMan->UnregisterDocumentFonts(_docIndex);
+    LVFontManager::getInstance()->UnregisterDocumentFonts(_docIndex);
 #if BUILD_LITE!=1
     updateMap();
 #endif
@@ -8020,7 +8021,7 @@ void ldomDocument::clear()
     _rendered = false;
     _urlImageMap.clear();
     _fontList.clear();
-    fontMan->UnregisterDocumentFonts(_docIndex);
+    LVFontManager::getInstance()->UnregisterDocumentFonts(_docIndex);
 #endif
     //TODO: implement clear
     //_elemStorage.
@@ -11065,6 +11066,7 @@ void ldomDocument::registerEmbeddedFonts()
         return;
     int list = _fontList.length();
     lString8 lastface = lString8("");
+    LVFontManager* fontMan = LVFontManager::getInstance();
     for (int i = list; i > 0; i--) {
         LVEmbeddedFontDef *item = _fontList.get(i - 1);
         lString16 url = item->getUrl();

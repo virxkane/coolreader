@@ -326,7 +326,7 @@ void CRGUIWindowManager::closeWindow( CRGUIWindow * window )
     CRGUIWindow * gotFocus = getTopVisibleWindow();
     if (gotFocus)
         gotFocus->reactivated();
-    fontMan->gc();
+    LVFontManager::getInstance()->gc();
 }
 
 /// activates window, brings it on top; add to stack if not added
@@ -1349,7 +1349,7 @@ void CRMenu::drawClient()
     rc.top += 0; //ITEM_MARGIN;
     //rc.left += ITEM_MARGIN;
     //rc.right -= ITEM_MARGIN;
-    LVFontRef numberFont( fontMan->GetFont( MENU_NUMBER_FONT_SIZE, 600, true, css_ff_sans_serif, cs8("Arial")) );
+    LVFontRef numberFont( LVFontManager::getInstance()->GetFont( MENU_NUMBER_FONT_SIZE, 600, true, css_ff_sans_serif, cs8("Arial")) );
     for ( int index=0; index<_pageItems; index++ ) {
         int i = _topItem + index;
         if ( i >= _items.length() )

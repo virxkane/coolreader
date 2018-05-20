@@ -24,7 +24,7 @@
 #include "lvptrvec.h"
 #include "lvref.h"
 #include "lvstring.h"
-#include "lvfntman.h"
+#include "lvfontman.h"
 #include "lvdrawbuf.h"
 #include "lvtinydom.h"
 #include "crlog.h"

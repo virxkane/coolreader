@@ -856,7 +856,7 @@ LVFontRef getFont(css_style_rec_t * style, int documentId)
     fw += rend_font_embolden;
     if ( fw>900 )
         fw = 900;
-    LVFontRef fnt = fontMan->GetFont(
+    LVFontRef fnt = LVFontManager::getInstance()->GetFont(
         sz,
         fw,
         style->font_style==css_fs_italic,

@@ -137,7 +137,7 @@ void qt2cr( lString16Collection & dst, const QStringList & src )
 void crGetFontFaceList( QStringList & dst )
 {
     lString16Collection faceList;
-    fontMan->getFaceList( faceList );
+    LVFontManager::getInstance()->getFaceList( faceList );
     cr2qt( dst, faceList );
 }
 

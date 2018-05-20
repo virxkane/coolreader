@@ -33,6 +33,8 @@
 #include "lvxml.h"
 #include "dtddef.h"
 #include "lvstyles.h"
+#include "lvfontman.h"
+#include "lvembeddedfont.h"
 #include "lvdrawbuf.h"
 #include "lvstsheet.h"
 #include "lvpagesplitter.h"
@@ -1031,7 +1033,7 @@ public:
     virtual void gc()
     {
 #if BUILD_LITE!=1
-        fontMan->gc();
+        LVFontManager::getInstance()->gc();
 #endif
     }
 

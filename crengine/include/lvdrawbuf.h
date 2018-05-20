@@ -46,7 +46,7 @@ enum DrawBufPixelFormat
 	DRAW_BUF_32_BPP = 32  /// color 32bit RGB 888
 };
 
-class LVFont;
+//class LVFont;
 class GLDrawBuf; // workaround for no-rtti builds
 
 /// Abstract drawing buffer
@@ -223,12 +223,10 @@ public:
     virtual GLDrawBuf * asGLDrawBuf() { return NULL; }
 };
 
-#if 0
 inline lUInt32 RevRGB( lUInt32 cl )
 {
     return ((cl>>16)&255) | ((cl<<16)&0xFF0000) | (cl&0x00FF00);
 }
-#endif
 
 inline lUInt32 rgb565to888(lUInt32 cl ) {
     return ((cl & 0xF800)<<8) | ((cl & 0x07E0)<<5) | ((cl & 0x001F)<<3);

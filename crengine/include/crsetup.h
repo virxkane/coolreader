@@ -286,4 +286,8 @@
 #define MAX_IMAGE_SCALE_MUL 2
 #endif
 
+#ifndef MAX_LINE_CHARS
+#define MAX_LINE_CHARS 2048
+#endif
+
 #endif//CRSETUP_H_INCLUDED

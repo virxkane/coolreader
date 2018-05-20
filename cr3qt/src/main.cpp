@@ -264,7 +264,7 @@ lString8 readFileToString( const char * fname )
 void ShutdownCREngine()
 {
     HyphMan::uninit();
-    ShutdownFontManager();
+    LVFontManager::FreeInstance();
     CRLog::setLogger( NULL );
 #if LDOM_USE_OWN_MEM_MAN == 1
 //    ldomFreeStorage();
@@ -349,8 +349,9 @@ bool InitCREngine( const char * exename, lString16Collection & fontDirs )
 
     lString8 fontDir8 = UnicodeToLocal(fontDir);
     //const char * fontDir8s = fontDir8.c_str();
-    //InitFontManager( fontDir8 );
-    InitFontManager(lString8::empty_str);
+    //LVFontManager::InitInstance( fontDir8 );
+    LVFontManager::InitInstance(lString8::empty_str);
+    LVFontManager* fontMan = LVFontManager::getInstance();
 
 #ifdef _WIN32
     lChar16 sysdir[MAX_PATH+1];
@@ -414,7 +415,9 @@ bool InitCREngine( const char * exename, lString16Collection & fontDirs )
     fontExt.add(cs16(".pfb"));
     lString16Collection fonts;
 
+#if (USE_FREETYPE==1)
     getDirectoryFonts( fontDirs, fontExt, fonts, true );
+#endif
 
     // load fonts from file
     CRLog::debug("%d font files found", fonts.length());

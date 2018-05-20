@@ -193,7 +193,8 @@ LVDocView::LVDocView(int bitsPerPixel) :
     createDefaultDocument(cs16("No document"), lString16(
 			L"Welcome to CoolReader! Please select file to open"));
 
-    m_font = fontMan->GetFont(m_font_size, 400, false, DEFAULT_FONT_FAMILY,
+	LVFontManager* fontMan = LVFontManager::getInstance();
+	m_font = fontMan->GetFont(m_font_size, 400, false, DEFAULT_FONT_FAMILY,
 			m_defaultFontFace);
 	m_infoFont = fontMan->GetFont(m_status_font_size, 700, false,
 			DEFAULT_FONT_FAMILY, m_statusFontFace);
@@ -417,7 +418,7 @@ void LVDocView::setPageMargins(lvRect rc) {
     bool floatingPunct = m_props->getBoolDef(PROP_FLOATING_PUNCTUATION, true);
     int align = 0;
     if (floatingPunct) {
-        m_font = fontMan->GetFont(m_font_size, 400 + LVRendGetFontEmbolden(),
+        m_font = LVFontManager::getInstance()->GetFont(m_font_size, 400 + LVRendGetFontEmbolden(),
                 false, DEFAULT_FONT_FAMILY, m_defaultFontFace);
         align = m_font->getVisualAligmentWidth() / 2;
     }
@@ -996,6 +997,7 @@ void LVDocView::drawCoverTo(LVDrawBuf * drawBuf, lvRect & rc) {
 	else
 		base_font_size = 24;
 	//CRLog::trace("drawCoverTo() - loading fonts...");
+	LVFontManager* fontMan = LVFontManager::getInstance();
 	LVFontRef author_fnt(fontMan->GetFont(base_font_size, 700, false,
             css_ff_serif, cs8("Times New Roman")));
 	LVFontRef title_fnt(fontMan->GetFont(base_font_size + 4, 700, false,
@@ -1284,7 +1286,7 @@ void LVDocView::drawBatteryState(LVDrawBuf * drawbuf, const lvRect & batteryRc,
 	if ( m_batteryIcons.size()>1 ) {
 		icons.add(m_batteryIcons[0]);
 		if ( drawPercent ) {
-            m_batteryFont = fontMan->GetFont(m_batteryIcons[0]->GetHeight()-1, 900, false,
+            m_batteryFont = LVFontManager::getInstance()->GetFont(m_batteryIcons[0]->GetHeight()-1, 900, false,
                     DEFAULT_FONT_FAMILY, m_statusFontFace);
             icons.add(m_batteryIcons[m_batteryIcons.length()-1]);
 		} else {
@@ -2510,6 +2512,7 @@ void LVDocView::setRenderProps(int dx, int dy) {
 				- getPageHeaderHeight();
 
 	lString8 fontName = lString8(DEFAULT_FONT_NAME);
+	LVFontManager* fontMan = LVFontManager::getInstance();
 	m_font = fontMan->GetFont(m_font_size, 400 + LVRendGetFontEmbolden(),
 			false, DEFAULT_FONT_FAMILY, m_defaultFontFace);
 	//m_font = LVCreateFontTransform( m_font, LVFONT_TRANSFORM_EMBOLDEN );
@@ -2568,7 +2571,7 @@ void LVDocView::Render(int dx, int dy, LVRendPageList * pages) {
 			fclose(f);
 		}
 #endif
-		fontMan->gc();
+		LVFontManager::getInstance()->gc();
 		m_is_rendered = true;
 		//CRLog::debug("Making TOC...");
 		//makeToc();
@@ -5620,7 +5623,7 @@ static const char * def_style_macros[] = {
 /// sets default property values if properties not found, checks ranges
 void LVDocView::propsUpdateDefaults(CRPropRef props) {
 	lString16Collection list;
-	fontMan->getFaceList(list);
+	LVFontManager::getInstance()->getFaceList(list);
 	static int def_aa_props[] = { 2, 1, 0 };
 
 	props->setIntDef(PROP_MIN_FILE_SIZE_TO_CACHE,
@@ -5811,12 +5814,13 @@ bool LVDocView::propApply(lString8 name, lString16 value) {
 CRPropRef LVDocView::propsApply(CRPropRef props) {
     CRLog::trace("LVDocView::propsApply( %d items )", props->getCount());
     CRPropRef unknown = LVCreatePropsContainer();
+    LVFontManager* fontMan = LVFontManager::getInstance();
     for (int i = 0; i < props->getCount(); i++) {
         lString8 name(props->getName(i));
         lString16 value = props->getValue(i);
         //bool isUnknown = false;
         if (name == PROP_FONT_ANTIALIASING) {
-            int antialiasingMode = props->getIntDef(PROP_FONT_ANTIALIASING, 2);
+            font_antialiasing_t antialiasingMode = (font_antialiasing_t)props->getIntDef(PROP_FONT_ANTIALIASING, 2);
             fontMan->SetAntialiasMode(antialiasingMode);
             REQUEST_RENDER("propsApply - font antialiasing")
         } else if (name.startsWith(cs8("styles."))) {
@@ -6147,7 +6151,7 @@ bool SimpleTitleFormatter::splitLines(const char * delimiter) {
     return measure();
 }
 bool SimpleTitleFormatter::format(int fontSize) {
-    _font = fontMan->GetFont(fontSize, _bold ? 800 : 400, _italic, css_ff_sans_serif, _fontFace, -1);
+    _font = LVFontManager::getInstance()->GetFont(fontSize, _bold ? 800 : 400, _italic, css_ff_sans_serif, _fontFace, -1);
     _lineHeight = _font->getHeight() * 120 / 100;
     _lines.clear();
     int singleLineWidth = _font->getTextWidth(_text.c_str(), _text.length());
@@ -6300,7 +6304,7 @@ void LVDrawBookCover(LVDrawBuf & buf, LVImageSourceRef image, lString8 fontFace,
     buf.FillRect(rc3, palette->vline);
 
 
-	LVFontRef fnt = fontMan->GetFont(16, 400, false, css_ff_sans_serif, fontFace, -1); // = fontMan
+	LVFontRef fnt = LVFontManager::getInstance()->GetFont(16, 400, false, css_ff_sans_serif, fontFace, -1); // = fontMan
 	if (!fnt.isNull()) {
 
 		rc.left += rc.width() / 10;

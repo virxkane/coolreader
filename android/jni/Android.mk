@@ -62,7 +62,17 @@ CRENGINE_SRC_FILES := \
     ../../crengine/src/lvbmpbuf.cpp \
     ../../crengine/src/lvfnt.cpp \
     ../../crengine/src/hyphman.cpp \
-    ../../crengine/src/lvfntman.cpp \
+    ../../crengine/src/lvfont.cpp \
+    ../../crengine/src/lvbasefont.cpp \
+    ../../crengine/src/lvembeddedfont.cpp \
+    ../../crengine/src/lvbitmapfont.cpp \
+    ../../crengine/src/lvbitmapfontman.cpp \
+    ../../crengine/src/lvfreetypefont.cpp \
+    ../../crengine/src/lvfontboldtrans.cpp \
+    ../../crengine/src/lvfreetypefontman.cpp \
+    ../../crengine/src/lvfontcache.cpp \
+    ../../crengine/src/lvfontglyphcache.cpp \
+    ../../crengine/src/lvfontman.cpp \
     ../../crengine/src/lvimg.cpp \
     ../../crengine/src/crskin.cpp \
     ../../crengine/src/lvdrawbuf.cpp \

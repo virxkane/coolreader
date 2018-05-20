@@ -843,7 +843,7 @@ DocViewNative::DocViewNative()
     _docview->setShowCover( true );
     _docview->setFontSizes( sizes, true );
 	_docview->setFontSize(24);
-	_docview->setBatteryFont( fontMan->GetFont( 16, 600, false, css_ff_sans_serif, lString8("Droid Sans") ));
+	_docview->setBatteryFont( LVFontManager::getInstance()->GetFont( 16, 600, false, css_ff_sans_serif, lString8("Droid Sans") ));
 	
 	_docview->createDefaultDocument(lString16("Welcome to CoolReader"), lString16("Please select file to open"));
 }

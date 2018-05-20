@@ -571,12 +571,13 @@ jboolean initInternal(JNIEnv * penv, jclass obj, jobjectArray fontArray) {
     HyphMan::initDictionaries(lString16::empty_str); //don't look for dictionaries
 	HyphMan::activateDictionary(lString16(HYPH_DICT_ID_NONE));
 	CRLog::info("creating font manager");
-    InitFontManager(lString8::empty_str);
+	LVFontManager::InitInstance(lString8::empty_str);
 	CRLog::debug("converting fonts array: %d items", (int)env->GetArrayLength(fontArray));
 	lString16Collection fonts;
 	env.fromJavaStringArray(fontArray, fonts);
 	int len = fonts.length();
 	CRLog::debug("registering fonts: %d fonts in list", len);
+    LVFontManager* fontMan = LVFontManager::getInstance();
 	for ( int i=0; i<len; i++ ) {
 		lString8 fontName = UnicodeToUtf8(fonts[i]);
 		CRLog::debug("registering font %s", fontName.c_str());
@@ -610,7 +611,7 @@ JNIEXPORT void JNICALL Java_org_coolreader_crengine_Engine_uninitInternal
 {
 	LOGI("uninitInternal called");
 	HyphMan::uninit();
-	ShutdownFontManager();
+	LVFontManager::FreeInstance();
 	CRLog::setLogger(NULL);
 }
 
@@ -625,7 +626,7 @@ JNIEXPORT jobjectArray JNICALL Java_org_coolreader_crengine_Engine_getFontFaceLi
 	LOGI("getFontFaceListInternal called");
 	CRJNIEnv env(penv);
 	lString16Collection list;
-	COFFEE_TRY_JNI(penv, fontMan->getFaceList(list));
+	COFFEE_TRY_JNI(penv, LVFontManager::getInstance()->getFaceList(list));
 	return env.toJavaStringArray(list);
 }
 
