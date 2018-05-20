@@ -15,7 +15,9 @@
 #include "../include/lvgraydrawbuf.h"
 #include "../include/lvimagescaled_callback.h"
 #include "../include/crlog.h"
-
+#if !defined(__SYMBIAN32__) && defined(_WIN32) && !defined(QT_GL)
+#include "../include/lvcolordrawbuf.h"
+#endif
 
 #define GUARD_BYTE 0xa5
 #define CHECK_GUARD_BYTE \
@@ -684,7 +686,7 @@ void LVGrayDrawBuf::DrawTo( HDC dc, int x, int y, int options, lUInt32 * palette
 		BitBlt( dc, x, y+yy, _dx, 1, buf.GetDC(), 0, 0, SRCCOPY );
 	}
 }
-#endif
+#endif	// !defined(__SYMBIAN32__) && defined(_WIN32) && !defined(QT_GL)
 
 /// draws buffer content to another buffer doing color conversion if necessary
 void LVGrayDrawBuf::DrawTo( LVDrawBuf * buf, int x, int y, int options, lUInt32 * palette )

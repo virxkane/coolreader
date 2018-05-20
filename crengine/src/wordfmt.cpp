@@ -22,13 +22,9 @@
 #include "../include/wordfmt.h"
 
 #ifdef _WIN32
-extern "C" {
-	int strcasecmp(const char *s1, const char *s2) {
-        return _stricmp(s1,s2);
-	}
+#define strcasecmp _stricmp
 //char	*optarg = NULL;
 //	int	optind = 0;
-}
 #endif
 
 #ifdef _DEBUG
