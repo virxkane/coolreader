@@ -615,7 +615,7 @@ lString16::lString16(const lChar8 * str)
     }
     pchunk = EMPTY_STR_16;
     addref();
-	*this = Utf8ToUnicode( str );
+    assign(Utf8ToUnicode( str ));
 }
 
 /// constructor from utf8 character array fragment
@@ -630,7 +630,7 @@ lString16::lString16(const lChar8 * str, size_type count)
     }
     pchunk = EMPTY_STR_16;
     addref();
-	*this = Utf8ToUnicode( str, count );
+    assign(Utf8ToUnicode( str, count ));
 }
 
 
@@ -4039,16 +4039,14 @@ bool splitIntegerList( lString16 s, lString16 delim, int &value1, int &value2 )
 lString8 & lString8::replace(size_type p0, size_type n0, const lString8 & str) {
     lString8 s1 = substr( 0, p0 );
     lString8 s2 = length() - p0 - n0 > 0 ? substr( p0+n0, length()-p0-n0 ) : lString8::empty_str;
-    *this = s1 + str + s2;
-    return *this;
+    return assign(s1 + str + s2);
 }
 
 lString16 & lString16::replace(size_type p0, size_type n0, const lString16 & str)
 {
     lString16 s1 = substr( 0, p0 );
     lString16 s2 = length() - p0 - n0 > 0 ? substr( p0+n0, length()-p0-n0 ) : lString16::empty_str;
-    *this = s1 + str + s2;
-    return *this;
+    return assign(s1 + str + s2);
 }
 
 /// replaces part of string, if pattern is found
@@ -4057,7 +4055,7 @@ bool lString16::replace(const lString16 & findStr, const lString16 & replaceStr)
     int p = pos(findStr);
     if ( p<0 )
         return false;
-    *this = replace( p, findStr.length(), replaceStr );
+    assign(replace( p, findStr.length(), replaceStr ));
     return true;
 }
 

@@ -445,11 +445,23 @@ private:
     inline void addref() const { ++pchunk->nref; }
     inline void release() { if (--pchunk->nref==0) free(); }
 public:
-    explicit lString16(lstring_chunk_t * chunk) : pchunk(chunk) { addref(); }
+    explicit lString16(lstring_chunk_t * chunk)
+    {
+        if (NULL == chunk)
+            crFatalError(-3, "lString16(lstring_chunk_t * chunk): chunk must be not NULL!");
+        pchunk = chunk;
+        addref(); 
+    }
     /// empty string constructor
     explicit lString16() : pchunk(EMPTY_STR_16) { addref(); }
     /// copy constructor
-    lString16(const lString16 & str) : pchunk(str.pchunk) { addref(); }
+    lString16(const lString16 & str)
+    {
+        if (NULL == str.pchunk)
+            crFatalError(-3, "lString16(const lString16 & str): str.pchunk must be not NULL!");
+        pchunk = str.pchunk;
+        addref(); 
+    }
     /// constructor from wide c-string
     lString16(const value_type * str);
     /// constructor from 8bit c-string (ASCII only)
