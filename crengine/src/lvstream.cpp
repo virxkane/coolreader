@@ -592,8 +592,8 @@ public:
 		);
 		if ( m_hMap==NULL ) {
 			DWORD err = GetLastError();
-            CRLog::error( "LVFileMappedStream::Map() -- Cannot map file to memory, err=%08x, hFile=%08p", err, m_hFile );
-            return error();
+			CRLog::error( "LVFileMappedStream::Map() -- Cannot map file to memory, err=%08x, hFile=%p", err, m_hFile );
+			return error();
 		}
 		m_map = (lUInt8*) MapViewOfFile(
 			m_hMap,
