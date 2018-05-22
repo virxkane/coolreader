@@ -77,11 +77,11 @@ struct LVFontGlyphCacheItem
 	LVFontGlyphCacheItem * next_local;
 	LVFontLocalGlyphCache * local_cache;
 	lChar16 ch;
-	lUInt8 bmp_width;
-	lUInt8 bmp_height;
-	lInt8  origin_x;
-	lInt8  origin_y;
-	lUInt8 advance;
+	lUInt16 bmp_width;
+	lUInt16 bmp_height;
+	lInt16  origin_x;
+	lInt16  origin_y;
+	lUInt16 advance;
 	lUInt8 bmp[1];
 	//=======================================================================
 	int getSize() const

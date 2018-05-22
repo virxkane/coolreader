@@ -25,8 +25,8 @@ LVFontGlyphCacheItem* LVFontGlyphCacheItem::newItem( LVFontLocalGlyphCache * loc
 	LVFontGlyphCacheItem * item = (LVFontGlyphCacheItem *)malloc( sizeof(LVFontGlyphCacheItem)
 		+ (w*h - 1)*sizeof(lUInt8) );
 	item->ch = ch;
-	item->bmp_width = (lUInt8)w;
-	item->bmp_height = (lUInt8)h;
+	item->bmp_width = (lUInt16)w;
+	item->bmp_height = (lUInt16)h;
 	item->origin_x =   0;
 	item->origin_y =   0;
 	item->advance =    0;
@@ -42,8 +42,8 @@ LVFontGlyphCacheItem* LVFontGlyphCacheItem::newItem( LVFontLocalGlyphCache * loc
 {
 	FONT_LOCAL_GLYPH_CACHE_GUARD
 	FT_Bitmap*  bitmap = &slot->bitmap;
-	lUInt8 w = (lUInt8)(bitmap->width);
-	lUInt8 h = (lUInt8)(bitmap->rows);
+	int w = bitmap->width;
+	int h = bitmap->rows;
 	LVFontGlyphCacheItem * item = LVFontGlyphCacheItem::newItem(local_cache, ch, w, h );
 	if ( bitmap->pixel_mode==FT_PIXEL_MODE_MONO ) { //drawMonochrome
 		lUInt8 mask = 0x80;
@@ -87,9 +87,9 @@ LVFontGlyphCacheItem* LVFontGlyphCacheItem::newItem( LVFontLocalGlyphCache * loc
 				cr_correct_gamma_buf(item->bmp, w*h, LVFontManager::getInstance()->GetGammaIndex());
 //            }
 	}
-	item->origin_x =   (lInt8)slot->bitmap_left;
-	item->origin_y =   (lInt8)slot->bitmap_top;
-	item->advance =    (lUInt8)(myabs(slot->metrics.horiAdvance) >> 6);
+	item->origin_x =   (lInt16)slot->bitmap_left;
+	item->origin_y =   (lInt16)slot->bitmap_top;
+	item->advance =    (lUInt16)(myabs(slot->metrics.horiAdvance) >> 6);
 	return item;
 }
 
