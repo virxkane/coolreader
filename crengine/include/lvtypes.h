@@ -201,6 +201,7 @@ public:
 
 /// byte order convertor
 class lvByteOrderConv {
+    /// least signification byte is first: true - little endian, false - big endian
     bool _lsf;
 public:
     lvByteOrderConv()

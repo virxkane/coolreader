@@ -19,7 +19,7 @@
 #include "crfilehistrecord.h"
 
 #include "../include/lvstyles.h"
-#include "../include/lvrend.h"
+#include "../include/lvrend_funcs.h"
 #include "../include/lvstsheet.h"
 
 #include "../include/wolutil.h"
@@ -1862,10 +1862,10 @@ void LVDocView::drawPageTo(LVDrawBuf * drawbuf, LVRendPageInfo & page,
 	clip.bottom = pageRect->top + m_pageMargins.top + height + headerHeight
 			+ offset;
 	clip.right = pageRect->left + pageRect->width() - m_pageMargins.right;
-	if (page.type == PAGE_TYPE_COVER)
+	if (page.type == LVRendPageInfo::PAGE_TYPE_COVER)
 		clip.top = pageRect->top + m_pageMargins.top;
     if (((m_pageHeaderInfo || !m_pageHeaderOverride.empty()) && page.type
-            != PAGE_TYPE_COVER) && getViewMode() == DVM_PAGES) {
+            != LVRendPageInfo::PAGE_TYPE_COVER) && getViewMode() == DVM_PAGES) {
 		int phi = m_pageHeaderInfo;
 		if (getVisiblePageCount() == 2) {
 			if (page.index & 1) {
@@ -1889,7 +1889,7 @@ void LVDocView::drawPageTo(LVDrawBuf * drawbuf, LVRendPageInfo & page,
 	}
 	drawbuf->SetClipRect(&clip);
 	if (m_doc) {
-		if (page.type == PAGE_TYPE_COVER) {
+		if (page.type == LVRendPageInfo::PAGE_TYPE_COVER) {
 			lvRect rc = *pageRect;
 			drawbuf->SetClipRect(&rc);
 			//if ( m_pageMargins.bottom > m_pageMargins.top )
@@ -2226,7 +2226,7 @@ void LVDocView::Draw(LVDrawBuf & drawbuf, int position, int page, bool rotate, b
 		drawbuf.SetClipRect(NULL);
         drawPageBackground(drawbuf, 0, position);
         int cover_height = 0;
-		if (m_pages.length() > 0 && m_pages[0]->type == PAGE_TYPE_COVER)
+		if (m_pages.length() > 0 && m_pages[0]->type == LVRendPageInfo::PAGE_TYPE_COVER)
 			cover_height = m_pages[0]->height;
 		if (position < cover_height) {
 			lvRect rc;
@@ -2434,7 +2434,7 @@ LVRef<ldomXRange> LVDocView::getPageDocumentRange(int pageIndex) {
 		if (pageIndex < 0 || pageIndex >= m_pages.length())
 			pageIndex = getCurPage();
 		LVRendPageInfo * page = m_pages[pageIndex];
-		if (page->type != PAGE_TYPE_NORMAL)
+		if (page->type != LVRendPageInfo::PAGE_TYPE_NORMAL)
 			return res;
 		ldomXPointer start = m_doc->createXPointer(lvPoint(0, page->start));
 		//ldomXPointer end = m_doc->createXPointer( lvPoint( m_dx+m_dy, page->start + page->height - 1 ) );
@@ -4499,7 +4499,7 @@ ldomXPointer LVDocView::getCurrentPageMiddleParagraph() {
 		if (pageIndex < 0 || pageIndex >= m_pages.length())
 			pageIndex = getCurPage();
 		LVRendPageInfo * page = m_pages[pageIndex];
-		if (page->type == PAGE_TYPE_NORMAL)
+		if (page->type == LVRendPageInfo::PAGE_TYPE_NORMAL)
 			ptr = m_doc->createXPointer(lvPoint(0, page->start + page->height
 					/ 2));
 	}

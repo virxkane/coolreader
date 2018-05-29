@@ -50,9 +50,12 @@ if ( NOT ${GUI} STREQUAL FB2PROPS )
 		src/lvgraydrawbuf.cpp
 		src/lvcolordrawbuf.cpp
 		src/lvdocview.cpp
-		src/lvpagesplitter.cpp
+		src/lvrendpageinfo.cpp
+		src/lvrendpagelist.cpp
+		src/lvrendlineinfo.cpp
+		src/lvrendpagecontext.cpp
 		src/lvtextfm.cpp
-		src/lvrend.cpp
+		src/lvrend_funcs.cpp
 		src/wolutil.cpp
 		src/chmfmt.cpp
 		src/epubfmt.cpp

@@ -1,4 +1,4 @@
-/** \file lvpagesplitter.cpp
+/** \file lvrendpagecontext.cpp
     \brief page splitter implementation
 
     CoolReader Engine
@@ -10,113 +10,10 @@
     See LICENSE file for details.
 */
 
-#include "../include/lvpagesplitter.h"
+#include "../include/lvrendpagecontext.h"
+#include "../include/lvrendpagelist.h"
 #include "../include/lvtinydom.h"
 #include "../include/crlog.h"
-
-#include <time.h>
-
-
-int LVRendPageList::FindNearestPage( int y, int direction )
-{
-    if (!length())
-        return 0;
-    for (int i=0; i<length(); i++)
-    {
-        const LVRendPageInfo * pi = ((*this)[i]);
-        if (y<pi->start) {
-            if (i==0 || direction>=0)
-                return i;
-            else
-                return i-1;
-        } else if (y<pi->start+pi->height) {
-            if (i<length()-1 && direction>0)
-                return i+1;
-            else if (i==0 || direction>=0)
-                return i;
-            else
-                return i-1;
-        }
-    }
-    return length()-1;
-}
-
-LVRendPageContext::LVRendPageContext(LVRendPageList * pageList, int pageHeight)
-    : callback(NULL), totalFinalBlocks(0)
-    , renderedFinalBlocks(0), lastPercent(-1), page_list(pageList), page_h(pageHeight), footNotes(64), curr_note(NULL)
-{
-    if ( callback ) {
-        callback->OnFormatStart();
-    }
-}
-
-bool LVRendPageContext::updateRenderProgress( int numFinalBlocksRendered )
-{
-    renderedFinalBlocks += numFinalBlocksRendered;
-    int percent = totalFinalBlocks>0 ? renderedFinalBlocks * 100 / totalFinalBlocks : 0;
-    if ( percent<0 )
-        percent = 0;
-    if ( percent>100 )
-        percent = 100;
-    if ( callback && percent>lastPercent+RENDER_PROGRESS_INTERVAL_PERCENT ) {
-        if ( progressTimeout.expired() ) {
-            callback->OnFormatProgress(percent);
-            progressTimeout.restart(RENDER_PROGRESS_INTERVAL_MILLIS);
-            lastPercent = percent;
-            return true;
-        }
-    }
-    return false;
-}
-
-/// append footnote link to last added line
-void LVRendPageContext::addLink( lString16 id )
-{
-    if ( !page_list )
-        return;
-    if ( lines.empty() )
-        return;
-    LVFootNote * note = getOrCreateFootNote( id );
-    lines.last()->addLink(note);
-}
-
-/// mark start of foot note
-void LVRendPageContext::enterFootNote( lString16 id )
-{
-    if ( !page_list )
-        return;
-    //CRLog::trace("enterFootNote( %s )", LCSTR(id) );
-    if ( curr_note != NULL ) {
-        CRLog::error("Nested entering note" );
-        return;
-    }
-    curr_note = getOrCreateFootNote( id );
-}
-
-/// mark end of foot note
-void LVRendPageContext::leaveFootNote()
-{
-    if ( !page_list )
-        return;
-    //CRLog::trace("leaveFootNote()" );
-    if ( !curr_note ) {
-        CRLog::error("leaveFootNote() w/o current note set");
-    }
-    curr_note = NULL;
-}
-
-
-void LVRendPageContext::AddLine( int starty, int endy, int flags )
-{
-    if ( curr_note!=NULL )
-        flags |= RN_SPLIT_FOOT_NOTE;
-    LVRendLineInfo * line = new LVRendLineInfo(starty, endy, flags);
-    lines.add( line );
-    if ( curr_note != NULL ) {
-        //CRLog::trace("adding line to note (%d)", line->start);
-        curr_note->addLine( line );
-    }
-}
 
 #define FOOTNOTE_MARGIN 12
 
@@ -135,7 +32,7 @@ public:
     const LVRendLineInfo * footstart;
     const LVRendLineInfo * footend;
     const LVRendLineInfo * footlast;
-    LVArray<LVPageFootNoteInfo> footnotes;
+    LVArray<LVRendPageInfo::LVPageFootNoteInfo> footnotes;
     int lastpageend;
 
     PageSplitState(LVRendPageList * pl, int pageHeight)
@@ -299,7 +196,7 @@ public:
 #ifdef DEBUG_FOOTNOTES
             CRLog::trace("AddFootnoteFragmentToList(%d, %d)", footstart->getStart(), h);
 #endif
-            footnotes.add( LVPageFootNoteInfo( footstart->getStart(), h ) );
+            footnotes.add( LVRendPageInfo::LVPageFootNoteInfo( footstart->getStart(), h ) );
         }
         footstart = footend = NULL;
     }
@@ -360,6 +257,81 @@ public:
     }
 };
 
+
+LVRendPageContext::LVRendPageContext(LVRendPageList * pageList, int pageHeight)
+    : callback(NULL), totalFinalBlocks(0)
+    , renderedFinalBlocks(0), lastPercent(-1), page_list(pageList), page_h(pageHeight), footNotes(64), curr_note(NULL)
+{
+}
+
+bool LVRendPageContext::updateRenderProgress( int numFinalBlocksRendered )
+{
+    renderedFinalBlocks += numFinalBlocksRendered;
+    int percent = totalFinalBlocks>0 ? renderedFinalBlocks * 100 / totalFinalBlocks : 0;
+    if ( percent<0 )
+        percent = 0;
+    if ( percent>100 )
+        percent = 100;
+    if ( callback && percent>lastPercent+RENDER_PROGRESS_INTERVAL_PERCENT ) {
+        if ( progressTimeout.expired() ) {
+            callback->OnFormatProgress(percent);
+            progressTimeout.restart(RENDER_PROGRESS_INTERVAL_MILLIS);
+            lastPercent = percent;
+            return true;
+        }
+    }
+    return false;
+}
+
+/// append footnote link to last added line
+void LVRendPageContext::addLink( lString16 id )
+{
+    if ( !page_list )
+        return;
+    if ( lines.empty() )
+        return;
+    LVFootNote * note = getOrCreateFootNote( id );
+    lines.last()->addLink(note);
+}
+
+/// mark start of foot note
+void LVRendPageContext::enterFootNote( lString16 id )
+{
+    if ( !page_list )
+        return;
+    //CRLog::trace("enterFootNote( %s )", LCSTR(id) );
+    if ( curr_note != NULL ) {
+        CRLog::error("Nested entering note" );
+        return;
+    }
+    curr_note = getOrCreateFootNote( id );
+}
+
+/// mark end of foot note
+void LVRendPageContext::leaveFootNote()
+{
+    if ( !page_list )
+        return;
+    //CRLog::trace("leaveFootNote()" );
+    if ( !curr_note ) {
+        CRLog::error("leaveFootNote() w/o current note set");
+    }
+    curr_note = NULL;
+}
+
+
+void LVRendPageContext::AddLine( int starty, int endy, int flags )
+{
+    if ( curr_note!=NULL )
+        flags |= RN_SPLIT_FOOT_NOTE;
+    LVRendLineInfo * line = new LVRendLineInfo(starty, endy, flags);
+    lines.add( line );
+    if ( curr_note != NULL ) {
+        //CRLog::trace("adding line to note (%d)", line->start);
+        curr_note->addLine( line );
+    }
+}
+
 void LVRendPageContext::split()
 {
     if ( !page_list )
@@ -405,91 +377,3 @@ void LVRendPageContext::Finalize()
     lines.clear();
     footNotes.clear();
 }
-
-static const char * pagelist_magic = "PageList";
-
-bool LVRendPageList::serialize( SerialBuf & buf )
-{
-    if ( buf.error() )
-        return false;
-    buf.putMagic( pagelist_magic );
-    int pos = buf.pos();
-    buf << (lUInt32)length();
-    for ( int i=0; i<length(); i++ ) {
-        get(i)->serialize( buf );
-    }
-    buf.putMagic( pagelist_magic );
-    buf.putCRC( buf.pos() - pos );
-    return !buf.error();
-}
-
-bool LVRendPageList::deserialize( SerialBuf & buf )
-{
-    if ( buf.error() )
-        return false;
-    if ( !buf.checkMagic( pagelist_magic ) )
-        return false;
-    clear();
-    int pos = buf.pos();
-    lUInt32 len;
-    buf >> len;
-    clear();
-    reserve(len);
-    for (lUInt32 i = 0; i < len; i++) {
-        LVRendPageInfo * item = new LVRendPageInfo();
-        item->deserialize( buf );
-        item->index = i;
-        add( item );
-    }
-    if ( !buf.checkMagic( pagelist_magic ) )
-        return false;
-    buf.checkCRC( buf.pos() - pos );
-    return !buf.error();
-}
-
-bool LVRendPageInfo::serialize( SerialBuf & buf )
-{
-    if ( buf.error() )
-        return false;
-    buf << (lUInt32)start; /// start of page
-    buf << (lUInt16)height; /// height of page, does not include footnotes
-    buf << (lUInt8) type;   /// type: PAGE_TYPE_NORMAL, PAGE_TYPE_COVER
-    lUInt16 len = footnotes.length();
-    buf << len;
-    for ( int i=0; i<len; i++ ) {
-        buf << (lUInt32)footnotes[i].start;
-        buf << (lUInt32)footnotes[i].height;
-    }
-    return !buf.error();
-}
-
-bool LVRendPageInfo::deserialize( SerialBuf & buf )
-{
-    if ( buf.error() )
-        return false;
-    lUInt32 n1;
-	lUInt16 n2;
-    lUInt8 n3;
-
-    buf >> n1 >> n2 >> n3; /// start of page
-
-    start = n1;
-    height = n2;
-    type = n3;
-
-    lUInt16 len;
-    buf >> len;
-    footnotes.clear();
-    if ( len ) {
-        footnotes.reserve(len);
-        for ( int i=0; i<len; i++ ) {
-            lUInt32 n1;
-            lUInt32 n2;
-            buf >> n1;
-            buf >> n2;
-            footnotes.add( LVPageFootNoteInfo( n1, n2 ) );
-        }
-    }
-    return !buf.error();
-}
-

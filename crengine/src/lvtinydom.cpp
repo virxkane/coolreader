@@ -137,9 +137,10 @@ enum CacheFileBlockType {
 #include "../include/crsetup.h"
 #include "../include/lvstring.h"
 #include "../include/lvtinydom.h"
+#include "../include/lvrendpagelist.h"
 #include "../include/fb2def.h"
 #if BUILD_LITE!=1
-#include "../include/lvrend.h"
+#include "../include/lvrend_funcs.h"
 #include "../include/chmfmt.h"
 #endif
 #include "../include/crtest.h"

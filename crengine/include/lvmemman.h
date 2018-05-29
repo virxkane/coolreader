@@ -40,11 +40,13 @@ void crSetFatalErrorHandler( lv_FatalErrorHandler_t * handler );
 /// typed realloc with result check (size is counted in T), fatal error if failed
 template <typename T> T * cr_realloc( T * ptr, size_t newSize ) {
     T * newptr = reinterpret_cast<T*>(realloc(ptr, sizeof(T)*newSize));
-    if ( newptr )
-        return newptr;
-    free(ptr); // to bypass cppcheck warning
-    crFatalError(-2, "realloc failed");
-    return NULL;
+    if ( NULL == newptr )
+    {
+        free(ptr); // to bypass cppcheck warning
+        crFatalError(-2, "realloc failed");
+        return NULL;
+    }
+    return newptr;
 }
 
 

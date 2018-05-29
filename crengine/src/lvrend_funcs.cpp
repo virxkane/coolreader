@@ -2,7 +2,7 @@
 
    CoolReader Engine
 
-   lvrend.cpp:  XML DOM tree rendering tools
+   lvrend_funcs.cpp:  XML DOM tree rendering tools
 
    (c) Vadim Lopatin, 2000-2006
    This source code is distributed under the terms of
@@ -15,7 +15,7 @@
 #include <string.h>
 #include "../include/lvtinydom.h"
 #include "../include/fb2def.h"
-#include "../include/lvrend.h"
+#include "../include/lvrend_funcs.h"
 //#include "../include/lvmatrix.h"
 #include "../include/crlog.h"
 

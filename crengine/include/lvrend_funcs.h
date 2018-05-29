@@ -1,4 +1,4 @@
-/** \file lvrend.h
+/** \file lvrend_funcs.h
     \brief DOM document rendering (formatting) functions
 
     CoolReader Engine
@@ -11,8 +11,8 @@
 
 */
 
-#ifndef __LV_REND_H_INCLUDED__
-#define __LV_REND_H_INCLUDED__
+#ifndef __LV_REND_FUNCS_H_INCLUDED__
+#define __LV_REND_FUNCS_H_INCLUDED__
 
 #include "lvtinydom.h"
 
@@ -49,4 +49,4 @@ void LVRendSetFontEmbolden( int addWidth=STYLE_FONT_EMBOLD_MODE_EMBOLD );
 /// get global document font style embolden mode
 int LVRendGetFontEmbolden();
 
-#endif
+#endif	// __LV_REND_FUNCS_H_INCLUDED__

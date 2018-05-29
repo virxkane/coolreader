@@ -80,9 +80,12 @@ CRENGINE_SRC_FILES := \
     ../../crengine/src/lvgraydrawbuf.cpp \
     ../../crengine/src/lvcolordrawbuf.cpp \
     ../../crengine/src/lvdocview.cpp \
-    ../../crengine/src/lvpagesplitter.cpp \
+    ../../crengine/src/lvrendpageinfo.cpp \
+    ../../crengine/src/lvrendpagelist.cpp \
+    ../../crengine/src/lvrendlineinfo.cpp \
+    ../../crengine/src/lvrendpagecontext.cpp \
     ../../crengine/src/lvtextfm.cpp \
-    ../../crengine/src/lvrend.cpp \
+    ../../crengine/src/lvrend_funcs.cpp \
     ../../crengine/src/wolutil.cpp \
     ../../crengine/src/crconcurrent.cpp \
     ../../crengine/src/crlog.cpp \

@@ -37,7 +37,7 @@
 #include "lvembeddedfont.h"
 #include "lvdrawbuf.h"
 #include "lvstsheet.h"
-#include "lvpagesplitter.h"
+#include "lvrendpagecontext.h"
 #include "lvptrvec.h"
 #include "lvhashtable.h"
 #include "lvimg.h"
