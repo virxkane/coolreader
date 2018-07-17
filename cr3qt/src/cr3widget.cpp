@@ -1,6 +1,7 @@
 #include "../crengine/include/lvdocview.h"
 #include "../crengine/include/crtrace.h"
 #include "../crengine/include/props.h"
+#include "../crengine/include/lvdomdoc.h"
 #include "cr3widget.h"
 #include "crqtutil.h"
 #include "qpainter.h"

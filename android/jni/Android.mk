@@ -50,6 +50,14 @@ CRENGINE_SRC_FILES := \
     ../../crengine/src/lvstyles.cpp \
     ../../crengine/src/crtxtenc.cpp \
     ../../crengine/src/lvtinydom.cpp \
+    ../../crengine/src/lvdomdoccache.cpp \
+    ../../crengine/src/lvdomdocfragwriter.cpp \
+    ../../crengine/src/lvdomdocwriterfilter.cpp \
+    ../../crengine/src/lvdomdocwriter.cpp \
+    ../../crengine/src/lvdomelwriter.cpp \
+    ../../crengine/src/lvdomdoc.cpp \
+    ../../crengine/src/lvdomcache_p.cpp \
+    ../../crengine/src/lvdomimpstlparser_p.cpp \
     ../../crengine/src/lvstream.cpp \
     ../../crengine/src/lvxml.cpp \
     ../../crengine/src/chmfmt.cpp \

@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../include/lvtinydom.h"
+#include "../include/lvdomdoc.h"
 #include "../include/fb2def.h"
 #include "../include/lvrend_funcs.h"
 //#include "../include/lvmatrix.h"

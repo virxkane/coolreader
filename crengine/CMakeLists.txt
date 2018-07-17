@@ -9,6 +9,14 @@ set(CRENGINE_SOURCES
 	src/lvstyles.cpp
 	src/crtxtenc.cpp
 	src/lvtinydom.cpp
+	src/lvdomdoccache.cpp
+	src/lvdomdocfragwriter.cpp
+	src/lvdomdocwriterfilter.cpp
+	src/lvdomdocwriter.cpp
+	src/lvdomelwriter.cpp
+	src/lvdomdoc.cpp
+	src/lvdomcache_p.cpp
+	src/lvdomimpstlparser_p.cpp
 	src/lvstream.cpp
 	src/lvxml.cpp
 	src/lvstsheet.cpp

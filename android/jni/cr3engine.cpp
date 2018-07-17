@@ -17,6 +17,7 @@
 #include "../../crengine/include/cr3version.h"
 #include "docview.h"
 #include "../../crengine/include/crengine.h"
+#include "../../crengine/include/lvdomdocwriter.h"
 #include "../../crengine/include/epubfmt.h"
 #include "../../crengine/include/pdbfmt.h"
 #include "../../crengine/include/lvstream.h"

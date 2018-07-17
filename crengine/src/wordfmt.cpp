@@ -1,7 +1,9 @@
 #include "../include/crsetup.h"
 #include "../include/lvstring.h"
 #include "../include/lvstream.h"
-#include "../include/lvtinydom.h"
+//#include "../include/lvtinydom.h"
+#include "../include/lvdomdocwriter.h"
+#include "../include/lvdomdoc.h"
 #include "../include/crlog.h"
 
 //#ifndef ENABLE_ANTIWORD

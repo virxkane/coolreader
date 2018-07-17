@@ -15,6 +15,7 @@
 #include "../include/lvdrawstatesaver.h"
 #include "../include/lvstsheet.h"
 #include "../include/crtrace.h"
+#include "../include/lvdomdoc.h"
 
 #include <stdlib.h>
 

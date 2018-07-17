@@ -1,6 +1,8 @@
 #include "../include/pdbfmt.h"
 #include "../include/crlog.h"
 #include "../include/lvcrc32.h"
+#include "../include/lvdomdocwriterfilter.h"
+#include "../include/lvdomdoc.h"
 
 #include <ctype.h>
 

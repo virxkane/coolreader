@@ -1,4 +1,7 @@
 #include "../include/epubfmt.h"
+#include "../include/lvdomdocfragwriter.h"
+#include "../include/lvdomdocwriter.h"
+#include "../include/lvdomdoc.h"
 #include "../include/crlog.h"
 
 

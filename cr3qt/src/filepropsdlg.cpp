@@ -2,6 +2,7 @@
 #include "ui_filepropsdlg.h"
 #include "cr3widget.h"
 #include "../crengine/include/lvdocview.h"
+#include "../crengine/include/lvdomdoc.h"
 #include <cr3version.h>
 
 #if QT_VERSION >= 0x050000

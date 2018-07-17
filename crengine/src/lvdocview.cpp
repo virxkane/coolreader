@@ -29,6 +29,8 @@
 #include "../include/chmfmt.h"
 #include "../include/wordfmt.h"
 #include "../include/pdbfmt.h"
+#include "../include/lvdomdocwriterfilter.h"
+#include "../include/lvdomdoc.h"
 /// to show page bounds rectangles
 //#define SHOW_PAGE_RECT
 
@@ -2056,7 +2058,7 @@ int LVDocView::getCurPage() {
 
 bool LVDocView::goToPage(int page, bool updatePosBookmark) {
 	LVLock lock(getMutex());
-    CHECK_RENDER("goToPage()")
+	CHECK_RENDER("goToPage()")
 	if (!m_pages.length())
 		return false;
 	bool res = true;
@@ -2090,13 +2092,13 @@ bool LVDocView::goToPage(int page, bool updatePosBookmark) {
 			res = false;
 		}
 	}
-    if (updatePosBookmark) {
-        _posBookmark = getBookmark();
-    }
+	if (updatePosBookmark) {
+		_posBookmark = getBookmark();
+	}
 	_posIsSet = true;
 	updateScroll();
-    if (res)
-        updateBookMarksRanges();
+	if (res)
+		updateBookMarksRanges();
 	return res;
 }
 

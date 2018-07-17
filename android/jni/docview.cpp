@@ -1,4 +1,5 @@
 #include "docview.h"
+#include "lvdomdoc.h"
 #include "lvdocview.h"
 #include "lvgraydrawbuf.h"
 //#include "crgl.h"

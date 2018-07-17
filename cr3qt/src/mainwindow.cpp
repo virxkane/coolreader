@@ -14,6 +14,7 @@
 #include <QTranslator>
 #include <QLibraryInfo>
 #include <QMessageBox>
+
 #include "settings.h"
 #include "tocdlg.h"
 #include "recentdlg.h"
@@ -21,11 +22,16 @@
 #include "filepropsdlg.h"
 #include "bookmarklistdlg.h"
 #include "addbookmarkdlg.h"
-#include "crqtutil.h"
 #include "wolexportdlg.h"
 #include "exportprogressdlg.h"
 #include "searchdlg.h"
+
+#if 1
+#include "../crengine/include/crengine.h"
+#else
+#include "crqtutil.h"
 #include "../crengine/include/lvtinydom.h"
+#endif
 
 #define DOC_CACHE_SIZE 128 * 0x100000
 

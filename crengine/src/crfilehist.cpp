@@ -12,7 +12,8 @@
 #include "../include/crfilehist.h"
 #include "../include/crfilehistrecord.h"
 #include "../include/crbookmark.h"
-#include "../include/lvtinydom.h"
+//#include "../include/lvtinydom.h"
+#include "../include/lvdomdoc.h"
 #include "../include/crlog.h"
 
 /// XML parser callback interface

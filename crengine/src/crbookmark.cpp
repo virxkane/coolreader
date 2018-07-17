@@ -9,7 +9,8 @@
     See LICENSE file for details
 */
 
-#include "../include/lvtinydom.h"
+//#include "../include/lvtinydom.h"
+#include "../include/lvdomdoc.h"
 #include "../include/crbookmark.h"
 #include "../include/crlog.h"
 
