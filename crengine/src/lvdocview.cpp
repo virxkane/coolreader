@@ -1494,13 +1494,13 @@ int LVDocView::getPosEndPagePercent() {
         else
             return 0;
     } else {
-        int fh = m_pages.length();
-        if (fh > 0) {
+        int pc = m_pages.length();
+        if (pc > 0) {
             int p = getCurPage() + 1;// + 1;
             if (getVisiblePageCount() > 1)
                 p++;
-            if (p > fh - 1)
-                p = fh - 1;
+            if (p > pc - 1)
+                p = pc - 1;
             if (p < 0)
                 p = 0;
             p = m_pages[p]->start - 10;
@@ -2435,16 +2435,18 @@ LVRef<ldomXRange> LVDocView::getPageDocumentRange(int pageIndex) {
 		// PAGES mode
 		if (pageIndex < 0 || pageIndex >= m_pages.length())
 			pageIndex = getCurPage();
-		LVRendPageInfo * page = m_pages[pageIndex];
-		if (page->type != LVRendPageInfo::PAGE_TYPE_NORMAL)
-			return res;
-		ldomXPointer start = m_doc->createXPointer(lvPoint(0, page->start));
-		//ldomXPointer end = m_doc->createXPointer( lvPoint( m_dx+m_dy, page->start + page->height - 1 ) );
-		ldomXPointer end = m_doc->createXPointer(lvPoint(0, page->start
-                                + page->height), 1);
-		if (start.isNull() || end.isNull())
-			return res;
-		res = LVRef<ldomXRange> (new ldomXRange(start, end));
+		if (pageIndex >= 0 && pageIndex < m_pages.length()) {
+			LVRendPageInfo *page = m_pages[pageIndex];
+			if (page->type != LVRendPageInfo::PAGE_TYPE_NORMAL)
+				return res;
+			ldomXPointer start = m_doc->createXPointer(lvPoint(0, page->start));
+			//ldomXPointer end = m_doc->createXPointer( lvPoint( m_dx+m_dy, page->start + page->height - 1 ) );
+			ldomXPointer end = m_doc->createXPointer(lvPoint(0, page->start
+															+ page->height), 1);
+			if (start.isNull() || end.isNull())
+				return res;
+			res = LVRef<ldomXRange>(new ldomXRange(start, end));
+		}
 	}
 	return res;
 }
@@ -2486,7 +2488,8 @@ int LVDocView::getCurrentPageImageCount()
 
     };
     ImageCounter cnt;
-    range->forEach(&cnt);
+    if (!range.isNull())
+        range->forEach(&cnt);
     return cnt.get();
 }
 
@@ -2496,8 +2499,8 @@ lString16 LVDocView::getPageText(bool, int pageIndex) {
     CHECK_RENDER("getPageText()")
 	lString16 txt;
 	LVRef < ldomXRange > range = getPageDocumentRange(pageIndex);
-    if (!range.isNull())
-	    txt = range->getRangeText();
+	if (!range.isNull())
+		txt = range->getRangeText();
 	return txt;
 }
 
@@ -4500,10 +4503,11 @@ ldomXPointer LVDocView::getCurrentPageMiddleParagraph() {
 		int pageIndex = getCurPage();
 		if (pageIndex < 0 || pageIndex >= m_pages.length())
 			pageIndex = getCurPage();
-		LVRendPageInfo * page = m_pages[pageIndex];
-		if (page->type == LVRendPageInfo::PAGE_TYPE_NORMAL)
-			ptr = m_doc->createXPointer(lvPoint(0, page->start + page->height
-					/ 2));
+		if (pageIndex >= 0 && pageIndex < m_pages.length()) {
+			LVRendPageInfo *page = m_pages[pageIndex];
+			if (page->type == LVRendPageInfo::PAGE_TYPE_NORMAL)
+				ptr = m_doc->createXPointer(lvPoint(0, page->start + page->height / 2));
+		}
 	}
 	if (ptr.isNull())
 		return ptr;
@@ -5426,6 +5430,10 @@ int LVDocView::onSelectionCommand( int cmd, int param )
 {
     CHECK_RENDER("onSelectionCommand()")
     LVRef<ldomXRange> pageRange = getPageDocumentRange();
+    if (pageRange.isNull()) {
+        clearSelection();
+        return 0;
+    }
     ldomXPointerEx pos( getBookmark() );
     ldomXRangeList & sel = getDocument()->getSelections();
     ldomXRange currSel;
