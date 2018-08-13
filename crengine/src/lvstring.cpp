@@ -586,7 +586,7 @@ void lString16::alloc(int sz)
     pchunk->buf16 = (lChar16*) ::malloc( sizeof(lChar16) * (sz+1) );
     assert( pchunk->buf16!=NULL );
     pchunk->size = sz;
-    pchunk->nref = 1;
+    pchunk->refCount = 1;
 }
 
 lString16::lString16(const lChar16 * str)
@@ -677,7 +677,7 @@ lString16 & lString16::assign(const lChar16 * str)
     else
     {
         size_type len = _lStr_len(str);
-        if (pchunk->nref==1)
+        if (refCount()==1)
         {
             if (pchunk->size<=len)
             {
@@ -706,7 +706,7 @@ lString16 & lString16::assign(const lChar8 * str)
     else
     {
         size_type len = _lStr_len(str);
-        if (pchunk->nref==1)
+        if (refCount()==1)
         {
             if (pchunk->size<=len)
             {
@@ -735,7 +735,7 @@ lString16 & lString16::assign(const lChar16 * str, size_type count)
     else
     {
         size_type len = _lStr_nlen(str, count);
-        if (pchunk->nref==1)
+        if (refCount()==1)
         {
             if (pchunk->size<=len)
             {
@@ -764,7 +764,7 @@ lString16 & lString16::assign(const lChar8 * str, size_type count)
     else
     {
         size_type len = _lStr_nlen(str, count);
-        if (pchunk->nref==1)
+        if (refCount()==1)
         {
             if (pchunk->size<=len)
             {
@@ -809,7 +809,7 @@ lString16 & lString16::assign(const lString16 & str, size_type offset, size_type
         }
         else
         {
-            if (pchunk->nref==1)
+            if (refCount()==1)
             {
                 if (pchunk->size<=count)
                 {
@@ -842,7 +842,7 @@ lString16 & lString16::erase(size_type offset, size_type count)
     else
     {
         size_type newlen = length()-count;
-        if (pchunk->nref==1)
+        if (refCount()==1)
         {
             _lStr_memcpy( pchunk->buf16+offset, pchunk->buf16+offset+count, newlen-offset+1 );
         }
@@ -862,7 +862,7 @@ lString16 & lString16::erase(size_type offset, size_type count)
 
 void lString16::reserve(size_type n)
 {
-    if (pchunk->nref==1)
+    if (refCount()==1)
     {
         if (pchunk->size < n)
         {
@@ -882,7 +882,7 @@ void lString16::reserve(size_type n)
 
 void lString16::lock( size_type newsize )
 {
-    if (pchunk->nref>1)
+    if (refCount()>1)
     {
         lstring_chunk_t * poldchunk = pchunk;
         release();
@@ -899,7 +899,7 @@ void lString16::lock( size_type newsize )
 // lock string, allocate buffer and reset length to 0
 void lString16::reset( size_type size )
 {
-    if (pchunk->nref>1 || pchunk->size<size)
+    if (refCount()>1 || pchunk->size<size)
     {
         release();
         alloc( size );
@@ -1028,7 +1028,7 @@ lString16 & lString16::pack()
 {
     if (pchunk->len + 4 < pchunk->size )
     {
-        if (pchunk->nref>1)
+        if (refCount()>1)
         {
             lock(pchunk->len);
         }
@@ -1065,7 +1065,7 @@ lString16 & lString16::trimNonAlpha()
     int newlen = lastns-firstns+1;
     if (newlen == pchunk->len)
         return *this;
-    if (pchunk->nref == 1)
+    if (refCount()==1)
     {
         if (firstns>0)
             lStr_memcpy( pchunk->buf16, pchunk->buf16+firstns, newlen );
@@ -1103,7 +1103,7 @@ lString16 & lString16::trim()
     int newlen = lastns-firstns+1;
     if (newlen == pchunk->len)
         return *this;
-    if (pchunk->nref == 1)
+    if (refCount()==1)
     {
         if (firstns>0)
             lStr_memcpy( pchunk->buf16, pchunk->buf16+firstns, newlen );
@@ -1282,7 +1282,7 @@ void lString8::alloc(int sz)
     pchunk->buf8 = (lChar8*) ::malloc( sizeof(lChar8) * (sz+1) );
     assert( pchunk->buf8!=NULL );
     pchunk->size = sz;
-    pchunk->nref = 1;
+    pchunk->refCount = 1;
 }
 
 lString8::lString8(const lChar8 * str)
@@ -1357,7 +1357,7 @@ lString8 & lString8::assign(const lChar8 * str)
     else
     {
         size_type len = _lStr_len(str);
-        if (pchunk->nref==1)
+        if (refCount()==1)
         {
             if (pchunk->size<=len)
             {
@@ -1386,7 +1386,7 @@ lString8 & lString8::assign(const lChar8 * str, size_type count)
     else
     {
         size_type len = _lStr_nlen(str, count);
-        if (pchunk->nref==1)
+        if (refCount()==1)
         {
             if (pchunk->size<=len)
             {
@@ -1431,7 +1431,7 @@ lString8 & lString8::assign(const lString8 & str, size_type offset, size_type co
         }
         else
         {
-            if (pchunk->nref==1)
+            if (refCount()==1)
             {
                 if (pchunk->size<=count)
                 {
@@ -1464,7 +1464,7 @@ lString8 & lString8::erase(size_type offset, size_type count)
     else
     {
         size_type newlen = length()-count;
-        if (pchunk->nref==1)
+        if (refCount()==1)
         {
             _lStr_memcpy( pchunk->buf8+offset, pchunk->buf8+offset+count, newlen-offset+1 );
         }
@@ -1484,7 +1484,7 @@ lString8 & lString8::erase(size_type offset, size_type count)
 
 void lString8::reserve(size_type n)
 {
-    if (pchunk->nref==1)
+    if (refCount()==1)
     {
         if (pchunk->size < n)
         {
@@ -1504,7 +1504,7 @@ void lString8::reserve(size_type n)
 
 void lString8::lock( size_type newsize )
 {
-    if (pchunk->nref>1)
+    if (refCount()>1)
     {
         lstring_chunk_t * poldchunk = pchunk;
         release();
@@ -1521,7 +1521,7 @@ void lString8::lock( size_type newsize )
 // lock string, allocate buffer and reset length to 0
 void lString8::reset( size_type size )
 {
-    if (pchunk->nref>1 || pchunk->size<size)
+    if (refCount()>1 || pchunk->size<size)
     {
         release();
         alloc( size );
@@ -1974,7 +1974,7 @@ lString8 & lString8::pack()
 {
     if (pchunk->len + 4 < pchunk->size )
     {
-        if (pchunk->nref>1)
+        if (refCount()>1)
         {
             lock(pchunk->len);
         }
@@ -2011,7 +2011,7 @@ lString8 & lString8::trim()
     int newlen = (int)(lastns - firstns + 1);
     if (newlen == pchunk->len)
         return *this;
-    if (pchunk->nref == 1)
+    if (refCount()==1)
     {
         if (firstns>0)
             lStr_memcpy( pchunk->buf8, pchunk->buf8+firstns, newlen );
