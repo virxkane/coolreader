@@ -51,6 +51,7 @@ import android.view.WindowManager;
 import android.view.WindowManager.LayoutParams;
 import android.widget.Toast;
 
+@SuppressLint("Registered")
 public class BaseActivity extends Activity implements Settings {
 
 	private static final Logger log = L.create("ba");
@@ -163,8 +164,7 @@ public class BaseActivity extends Activity implements Settings {
 			WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
 			lp.alpha = 1.0f;
 			lp.dimAmount = 0.0f;
-			if (!DeviceInfo.EINK_SCREEN)
-				lp.format = DeviceInfo.PIXEL_FORMAT;
+			lp.format = DeviceInfo.PIXEL_FORMAT;
 			lp.gravity = Gravity.CENTER_HORIZONTAL | Gravity.CENTER_VERTICAL;
 			lp.horizontalMargin = 0;
 			lp.verticalMargin = 0;
@@ -184,8 +184,8 @@ public class BaseActivity extends Activity implements Settings {
 		
 		setScreenBacklightDuration(props.getInt(ReaderView.PROP_APP_SCREEN_BACKLIGHT_LOCK, 3));
 
-		setFullscreen( props.getBool(ReaderView.PROP_APP_FULLSCREEN, (DeviceInfo.EINK_SCREEN?true:false)));
-		int orientation = props.getInt(ReaderView.PROP_APP_SCREEN_ORIENTATION, 5); //(DeviceInfo.EINK_SCREEN?0:4)
+		setFullscreen( props.getBool(ReaderView.PROP_APP_FULLSCREEN, DeviceInfo.EINK_SCREEN));
+		int orientation = props.getInt(ReaderView.PROP_APP_SCREEN_ORIENTATION, 0); //(DeviceInfo.EINK_SCREEN?0:4)
 		if (orientation < 0 || orientation > 5)
 			orientation = 5;
 		setScreenOrientation(orientation);
@@ -1021,8 +1021,8 @@ public class BaseActivity extends Activity implements Settings {
 	public void setScreenUpdateMode( int screenUpdateMode, View view ) {
 		//if (mReaderView != null) {
 			mScreenUpdateMode = screenUpdateMode;
-			if (EinkScreen.UpdateMode != screenUpdateMode || EinkScreen.UpdateMode == 2) {
-				EinkScreen.ResetController(screenUpdateMode, view);
+			if (EinkScreen.getUpdateMode() != screenUpdateMode || EinkScreen.getUpdateMode() == EinkScreen.CMODE_ACTIVE) {
+				EinkScreen.ResetController(mScreenUpdateMode, view);
 			}
 		//}
 	}
@@ -1033,9 +1033,8 @@ public class BaseActivity extends Activity implements Settings {
 	}
 	public void setScreenUpdateInterval( int screenUpdateInterval, View view ) {
 		mScreenUpdateInterval = screenUpdateInterval;
-		if (EinkScreen.UpdateModeInterval != screenUpdateInterval) {
-			EinkScreen.UpdateModeInterval = screenUpdateInterval;
-			EinkScreen.ResetController(mScreenUpdateMode, view);
+		if (EinkScreen.getUpdateInterval() != screenUpdateInterval) {
+			EinkScreen.ResetController(mScreenUpdateMode, screenUpdateInterval, view);
 		}
 	}
 
@@ -1439,7 +1438,7 @@ public class BaseActivity extends Activity implements Settings {
 			new DefKeyAction(KeyEvent.KEYCODE_CAMERA, ReaderAction.LONG, ReaderAction.NONE),
 			new DefKeyAction(KeyEvent.KEYCODE_SEARCH, ReaderAction.NORMAL, ReaderAction.SEARCH),
 			new DefKeyAction(KeyEvent.KEYCODE_SEARCH, ReaderAction.LONG, ReaderAction.TOGGLE_SELECTION_MODE),
-			
+
 			new DefKeyAction(KeyEvent.KEYCODE_PAGE_UP, ReaderAction.NORMAL, ReaderAction.PAGE_UP),
 			new DefKeyAction(KeyEvent.KEYCODE_PAGE_UP, ReaderAction.LONG, ReaderAction.NONE),
 			new DefKeyAction(KeyEvent.KEYCODE_PAGE_UP, ReaderAction.DOUBLE, ReaderAction.NONE),
@@ -1459,7 +1458,7 @@ public class BaseActivity extends Activity implements Settings {
 			
 			new DefKeyAction(ReaderView.KEYCODE_ESCAPE, ReaderAction.NORMAL, ReaderAction.PAGE_DOWN),
 			new DefKeyAction(ReaderView.KEYCODE_ESCAPE, ReaderAction.LONG, ReaderAction.REPEAT),
-			
+
 //		    public static final int KEYCODE_PAGE_BOTTOMLEFT = 0x5d; // fwd
 //		    public static final int KEYCODE_PAGE_BOTTOMRIGHT = 0x5f; // fwd
 //		    public static final int KEYCODE_PAGE_TOPLEFT = 0x5c; // back
@@ -1690,13 +1689,14 @@ public class BaseActivity extends Activity implements Settings {
 	        props.applyDefault(ReaderView.PROP_APP_SCREEN_BACKLIGHT, "-1");
 			props.applyDefault(ReaderView.PROP_SHOW_BATTERY, "1"); 
 			props.applyDefault(ReaderView.PROP_SHOW_POS_PERCENT, "0"); 
-			props.applyDefault(ReaderView.PROP_SHOW_PAGE_COUNT, "1"); 
+			props.applyDefault(ReaderView.PROP_SHOW_PAGE_COUNT, "1");
+			props.applyDefault(ReaderView.PROP_FONT_KERNING_ENABLED, "0");
 			props.applyDefault(ReaderView.PROP_SHOW_TIME, "1");
 			props.applyDefault(ReaderView.PROP_FONT_ANTIALIASING, "2");
 			props.applyDefault(ReaderView.PROP_APP_GESTURE_PAGE_FLIPPING, "1");
 			props.applyDefault(ReaderView.PROP_APP_SHOW_COVERPAGES, "1");
 			props.applyDefault(ReaderView.PROP_APP_COVERPAGE_SIZE, "1");
-			props.applyDefault(ReaderView.PROP_APP_SCREEN_ORIENTATION, DeviceInfo.EINK_SCREEN ? "0" : "4"); // "0"
+			props.applyDefault(ReaderView.PROP_APP_SCREEN_ORIENTATION, "0"); // "0"
 			props.applyDefault(ReaderView.PROP_CONTROLS_ENABLE_VOLUME_KEYS, "1");
 			props.applyDefault(ReaderView.PROP_APP_TAP_ZONE_HILIGHT, "0");
 			props.applyDefault(ReaderView.PROP_APP_BOOK_SORT_ORDER, FileInfo.DEF_SORT_ORDER.name());

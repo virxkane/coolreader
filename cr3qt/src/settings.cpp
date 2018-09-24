@@ -114,14 +114,14 @@ SettingsDlg::SettingsDlg(QWidget *parent, CR3View * docView ) :
         lString16 fn = bgFiles[i];
         QString f = cr2qt(fn);
         if ( f==bgFile )
-            bgIndex = i;
+            bgIndex = i + 1;
         m_backgroundFiles.append(f);
         fn = LVExtractFilenameWithoutExtension(fn);
         bgFileLabels.append(cr2qt(fn));
     }
     m_ui->cbPageSkin->clear();
     m_ui->cbPageSkin->addItems( bgFileLabels );
-    m_ui->cbPageSkin->setCurrentIndex(bgIndex+1);
+    m_ui->cbPageSkin->setCurrentIndex( bgIndex );
 
     optionToUi( PROP_WINDOW_FULLSCREEN, m_ui->cbWindowFullscreen );
     optionToUi( PROP_WINDOW_SHOW_MENU, m_ui->cbWindowShowMenu );
@@ -138,6 +138,7 @@ SettingsDlg::SettingsDlg(QWidget *parent, CR3View * docView ) :
     optionToUi( PROP_EMBEDDED_FONTS, m_ui->cbEnableEmbeddedFonts );
     m_ui->cbEnableEmbeddedFonts->setEnabled(m_props->getBoolDef(PROP_EMBEDDED_STYLES, true) ? Qt::Checked : Qt::Unchecked);
     optionToUi( PROP_TXT_OPTION_PREFORMATTED, m_ui->cbTxtPreFormatted );
+    optionToUi( PROP_FONT_KERNING_ENABLED, m_ui->cbFontKerning );
     optionToUi( PROP_FLOATING_PUNCTUATION, m_ui->cbFloatingPunctuation );
     optionToUiIndex( PROP_IMG_SCALING_ZOOMIN_INLINE_MODE, m_ui->cbImageInlineZoominMode );
     optionToUiIndex( PROP_IMG_SCALING_ZOOMIN_INLINE_SCALE, m_ui->cbImageInlineZoominScale );
@@ -317,7 +318,12 @@ void SettingsDlg::changeEvent(QEvent *e)
 
 void SettingsDlg::on_buttonBox_rejected()
 {
-    close();
+	close();
+}
+
+void SettingsDlg::on_cbFontKerning_stateChanged(int s)
+{
+    setCheck( PROP_FONT_KERNING_ENABLED, s );
 }
 
 void SettingsDlg::on_buttonBox_accepted()

@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- This file used only by 'Eclipse', if you use 'Android Studio'
+     file 'app/src/main/AndroidManifest.xml' used instead! -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
       package="org.coolreader"
       android:installLocation="auto"
-      android:versionName="3.1.2-116" android:versionCode="1016">
+      android:versionName="3.2.9-1" android:versionCode="2091">
     <supports-screens
         android:xlargeScreens="true"
         android:largeScreens="true"

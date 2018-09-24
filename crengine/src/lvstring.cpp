@@ -597,7 +597,7 @@ void lString16::alloc(int sz)
     pchunk->buf16 = (lChar16*) ::malloc( sizeof(lChar16) * (sz+1) );
     assert( pchunk->buf16!=NULL );
     pchunk->size = sz;
-    pchunk->nref = 1;
+    pchunk->refCount = 1;
 }
 
 lString16::lString16(const lChar16 * str)
@@ -688,7 +688,7 @@ lString16 & lString16::assign(const lChar16 * str)
     else
     {
         size_type len = _lStr_len(str);
-        if (pchunk->nref==1)
+        if (refCount()==1)
         {
             if (pchunk->size<=len)
             {
@@ -717,7 +717,7 @@ lString16 & lString16::assign(const lChar8 * str)
     else
     {
         size_type len = _lStr_len(str);
-        if (pchunk->nref==1)
+        if (refCount()==1)
         {
             if (pchunk->size<=len)
             {
@@ -746,7 +746,7 @@ lString16 & lString16::assign(const lChar16 * str, size_type count)
     else
     {
         size_type len = _lStr_nlen(str, count);
-        if (pchunk->nref==1)
+        if (refCount()==1)
         {
             if (pchunk->size<=len)
             {
@@ -775,7 +775,7 @@ lString16 & lString16::assign(const lChar8 * str, size_type count)
     else
     {
         size_type len = _lStr_nlen(str, count);
-        if (pchunk->nref==1)
+        if (refCount()==1)
         {
             if (pchunk->size<=len)
             {
@@ -820,7 +820,7 @@ lString16 & lString16::assign(const lString16 & str, size_type offset, size_type
         }
         else
         {
-            if (pchunk->nref==1)
+            if (refCount()==1)
             {
                 if (pchunk->size<=count)
                 {
@@ -853,7 +853,7 @@ lString16 & lString16::erase(size_type offset, size_type count)
     else
     {
         size_type newlen = length()-count;
-        if (pchunk->nref==1)
+        if (refCount()==1)
         {
             _lStr_memcpy( pchunk->buf16+offset, pchunk->buf16+offset+count, newlen-offset+1 );
         }
@@ -873,7 +873,7 @@ lString16 & lString16::erase(size_type offset, size_type count)
 
 void lString16::reserve(size_type n)
 {
-    if (pchunk->nref==1)
+    if (refCount()==1)
     {
         if (pchunk->size < n)
         {
@@ -893,7 +893,7 @@ void lString16::reserve(size_type n)
 
 void lString16::lock( size_type newsize )
 {
-    if (pchunk->nref>1)
+    if (refCount()>1)
     {
         lstring_chunk_t * poldchunk = pchunk;
         release();
@@ -910,7 +910,7 @@ void lString16::lock( size_type newsize )
 // lock string, allocate buffer and reset length to 0
 void lString16::reset( size_type size )
 {
-    if (pchunk->nref>1 || pchunk->size<size)
+    if (refCount()>1 || pchunk->size<size)
     {
         release();
         alloc( size );
@@ -1039,7 +1039,7 @@ lString16 & lString16::pack()
 {
     if (pchunk->len + 4 < pchunk->size )
     {
-        if (pchunk->nref>1)
+        if (refCount()>1)
         {
             lock(pchunk->len);
         }
@@ -1076,7 +1076,7 @@ lString16 & lString16::trimNonAlpha()
     int newlen = lastns-firstns+1;
     if (newlen == pchunk->len)
         return *this;
-    if (pchunk->nref == 1)
+    if (refCount()==1)
     {
         if (firstns>0)
             lStr_memcpy( pchunk->buf16, pchunk->buf16+firstns, newlen );
@@ -1114,7 +1114,7 @@ lString16 & lString16::trim()
     int newlen = lastns-firstns+1;
     if (newlen == pchunk->len)
         return *this;
-    if (pchunk->nref == 1)
+    if (refCount()==1)
     {
         if (firstns>0)
             lStr_memcpy( pchunk->buf16, pchunk->buf16+firstns, newlen );
@@ -1690,7 +1690,7 @@ void lString8::alloc(int sz)
     pchunk->buf8 = (lChar8*) ::malloc( sizeof(lChar8) * (sz+1) );
     assert( pchunk->buf8!=NULL );
     pchunk->size = sz;
-    pchunk->nref = 1;
+    pchunk->refCount = 1;
 }
 
 lString8::lString8(const lChar8 * str)
@@ -1765,7 +1765,7 @@ lString8 & lString8::assign(const lChar8 * str)
     else
     {
         size_type len = _lStr_len(str);
-        if (pchunk->nref==1)
+        if (refCount()==1)
         {
             if (pchunk->size<=len)
             {
@@ -1794,7 +1794,7 @@ lString8 & lString8::assign(const lChar8 * str, size_type count)
     else
     {
         size_type len = _lStr_nlen(str, count);
-        if (pchunk->nref==1)
+        if (refCount()==1)
         {
             if (pchunk->size<=len)
             {
@@ -1839,7 +1839,7 @@ lString8 & lString8::assign(const lString8 & str, size_type offset, size_type co
         }
         else
         {
-            if (pchunk->nref==1)
+            if (refCount()==1)
             {
                 if (pchunk->size<=count)
                 {
@@ -1872,7 +1872,7 @@ lString8 & lString8::erase(size_type offset, size_type count)
     else
     {
         size_type newlen = length()-count;
-        if (pchunk->nref==1)
+        if (refCount()==1)
         {
             _lStr_memcpy( pchunk->buf8+offset, pchunk->buf8+offset+count, newlen-offset+1 );
         }
@@ -1892,7 +1892,7 @@ lString8 & lString8::erase(size_type offset, size_type count)
 
 void lString8::reserve(size_type n)
 {
-    if (pchunk->nref==1)
+    if (refCount()==1)
     {
         if (pchunk->size < n)
         {
@@ -1912,7 +1912,7 @@ void lString8::reserve(size_type n)
 
 void lString8::lock( size_type newsize )
 {
-    if (pchunk->nref>1)
+    if (refCount()>1)
     {
         lstring_chunk_t * poldchunk = pchunk;
         release();
@@ -1929,7 +1929,7 @@ void lString8::lock( size_type newsize )
 // lock string, allocate buffer and reset length to 0
 void lString8::reset( size_type size )
 {
-    if (pchunk->nref>1 || pchunk->size<size)
+    if (refCount()>1 || pchunk->size<size)
     {
         release();
         alloc( size );
@@ -2382,7 +2382,7 @@ lString8 & lString8::pack()
 {
     if (pchunk->len + 4 < pchunk->size )
     {
-        if (pchunk->nref>1)
+        if (refCount()>1)
         {
             lock(pchunk->len);
         }
@@ -2419,7 +2419,7 @@ lString8 & lString8::trim()
     int newlen = (int)(lastns - firstns + 1);
     if (newlen == pchunk->len)
         return *this;
-    if (pchunk->nref == 1)
+    if (refCount()==1)
     {
         if (firstns>0)
             lStr_memcpy( pchunk->buf8, pchunk->buf8+firstns, newlen );
@@ -2807,26 +2807,10 @@ int Utf8CharCount( const lChar8 * str )
                 break;
             if ( !(*str++) )
                 break;
-        } else if ( (ch & 0xFC) == 0xF8 ) {
-            if ( !(*str++) )
-                break;
-            if ( !(*str++) )
-                break;
-            if ( !(*str++) )
-                break;
-            if ( !(*str++) )
-                break;
         } else {
-            if ( !(*str++) )
-                break;
-            if ( !(*str++) )
-                break;
-            if ( !(*str++) )
-                break;
-            if ( !(*str++) )
-                break;
-            if ( !(*str++) )
-                break;
+            // In Unicode standard maximum length of UTF-8 sequence is 4 byte!
+            // invalid first byte in UTF-8 sequence, just leave as is
+            ;
         }
         count++;
     }
@@ -2848,10 +2832,9 @@ int Utf8CharCount( const lChar8 * str, int len )
             str+=2;
         } else if ( (ch & 0xF8) == 0xF0 ) {
             str+=3;
-        } else if ( (ch & 0xFC) == 0xF8 ) {
-            str+=4;
         } else {
-            str+=5;
+            // invalid first byte of UTF-8 sequence, just leave as is
+            ;
         }
         if (str > endp)
             break;
@@ -2869,9 +2852,9 @@ inline int charUtf8ByteCount(int ch) {
         return 3;
     if (!(ch & ~0x1FFFFF))
         return 4;
-    if (!(ch & ~0x3FFFFFF))
-        return 5;
-    return 6;
+    // In Unicode Standard codepoint must be in range U+0000..U+10FFFF
+    // return invalid codepoint as one byte
+    return 1;
 }
 
 int Utf8ByteCount(const lChar16 * str)
@@ -2925,21 +2908,10 @@ static void DecodeUtf8(const char * s,  lChar16 * p, int len)
                 | CONT_BYTE(1,6)
                 | CONT_BYTE(2,0);
             s += 3;
-        } else if ( (ch & 0xFC) == 0xF8 ) {
-            *p++ = ((ch & 0x03) << 24)
-                | CONT_BYTE(0,18)
-                | CONT_BYTE(1,12)
-                | CONT_BYTE(2,6)
-                | CONT_BYTE(3,0);
-            s += 4;
         } else {
-            *p++ = ((ch & 0x01) << 30)
-                | CONT_BYTE(0,24)
-                | CONT_BYTE(1,18)
-                | CONT_BYTE(2,12)
-                | CONT_BYTE(3,6)
-                | CONT_BYTE(4,0);
-            s += 5;
+            // Invalid first byte in UTF-8 sequence
+            // Pass with mask 0x7F, to resolve exception around env->NewStringUTF()
+            *p++ = (char) (ch & 0x7F);
         }
     }
 }
@@ -2977,25 +2949,11 @@ void Utf8ToUnicode(const lUInt8 * src,  int &srclen, lChar16 * dst, int &dstlen)
                 | CONT_BYTE(2,6)
                 | CONT_BYTE(3,0);
             s += 4;
-        } else if ( (ch & 0xFC) == 0xF8 ) {
-            if (s + 5 > ends)
-                break;
-            *p++ = ((ch & 0x03) << 24)
-                | CONT_BYTE(1,18)
-                | CONT_BYTE(2,12)
-                | CONT_BYTE(3,6)
-                | CONT_BYTE(4,0);
-            s += 5;
         } else {
-            if (s + 6 > ends)
-                break;
-            *p++ = ((ch & 0x01) << 30)
-                | CONT_BYTE(1,24)
-                | CONT_BYTE(2,18)
-                | CONT_BYTE(3,12)
-                | CONT_BYTE(4,6)
-                | CONT_BYTE(5,0);
-            s += 6;
+            // Invalid first byte in UTF-8 sequence
+            // Pass with mask 0x7F, to resolve exception around env->NewStringUTF()
+            *p++ = (char) (ch & 0x7F);
+            s++;
         }
     }
     srclen = (int)(s - src);
@@ -3057,19 +3015,10 @@ lString8 UnicodeToUtf8(const lChar16 * s, int count)
                 *buf++ = ( (lUInt8) ( ((ch >> 12) & 0x3F) | 0x80 ) );
                 *buf++ = ( (lUInt8) ( ((ch >> 6) & 0x3F) | 0x80 ) );
                 *buf++ = ( (lUInt8) ( ((ch ) & 0x3F) | 0x80 ) );
-            } else if (!(ch & ~0x3FFFFFF)) {
-                *buf++ = ( (lUInt8) ( ((ch >> 24) & 0x03) | 0xF8 ) );
-                *buf++ = ( (lUInt8) ( ((ch >> 18) & 0x3F) | 0x80 ) );
-                *buf++ = ( (lUInt8) ( ((ch >> 12) & 0x3F) | 0x80 ) );
-                *buf++ = ( (lUInt8) ( ((ch >> 6) & 0x3F) | 0x80 ) );
-                *buf++ = ( (lUInt8) ( ((ch ) & 0x3F) | 0x80 ) );
             } else {
-                *buf++ = ( (lUInt8) ( ((ch >> 30) & 0x01) | 0xFC ) );
-                *buf++ = ( (lUInt8) ( ((ch >> 24) & 0x3F) | 0x80 ) );
-                *buf++ = ( (lUInt8) ( ((ch >> 18) & 0x3F) | 0x80 ) );
-                *buf++ = ( (lUInt8) ( ((ch >> 12) & 0x3F) | 0x80 ) );
-                *buf++ = ( (lUInt8) ( ((ch >> 6) & 0x3F) | 0x80 ) );
-                *buf++ = ( (lUInt8) ( ((ch ) & 0x3F) | 0x80 ) );
+                // invalid codepoint
+                // In Unicode Standard codepoint must be in range U+0000 .. U+10FFFF
+                *buf++ = '?';
             }
         }
     }

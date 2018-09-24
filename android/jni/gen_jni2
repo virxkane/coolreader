@@ -1,9 +1,0 @@
-#!/bin/sh
-
-sdk="/opt/android-sdk-update-manager"
-binclass_path=../../cr3android/app/build/intermediates/classes/debug/
-
-export CLASSPATH="${CLASSPATH}:${sdk}/platforms/android-17/*:${binclass_path}"
-
-javah org.coolreader.crengine.Engine
-javah org.coolreader.crengine.DocView
