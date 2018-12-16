@@ -4,7 +4,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
       package="org.coolreader"
       android:installLocation="auto"
-      android:versionName="3.2.9-1" android:versionCode="2091">
+      android:versionName="3.2.11-1" android:versionCode="2111">
     <supports-screens
         android:xlargeScreens="true"
         android:largeScreens="true"
@@ -28,7 +28,7 @@
     <!-- Required permission to use in-app billing. -->
     <uses-permission android:name="com.android.vending.BILLING" />
     <application android:label="@string/app_name"
-        android:icon="@drawable/cr3_logo"
+        android:icon="@mipmap/cr3_logo"
         android:allowClearUserData="true"
         android:process="org.coolreader"
         >

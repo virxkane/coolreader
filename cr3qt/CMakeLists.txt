@@ -1,9 +1,3 @@
-if( ${GUI} STREQUAL QT )
-  FIND_PACKAGE( Qt4 REQUIRED )
-  INCLUDE(${QT_USE_FILE})
-else()
-  FIND_PACKAGE( Qt5 REQUIRED COMPONENTS Core Widgets LinguistTools)
-endif()
 
 SET(CR3_UIS
   src/aboutdlg.ui        src/bookmarklistdlg.ui  src/mainwindow.ui  src/settings.ui
@@ -49,13 +43,9 @@ if(MAC)
     ${CARBON_CFLAGS}
     )
 ELSEIF (UNIX)
-    ADD_DEFINITIONS(-DCR3_DATA_DIR="${CMAKE_INSTALL_PREFIX}/share/cr3/" 
-          -DUSE_FONTCONFIG=1 
-    )
+    ADD_DEFINITIONS(-DCR3_DATA_DIR="${CMAKE_INSTALL_PREFIX}/share/cr3/")
 ELSE()
-    ADD_DEFINITIONS(-DCR3_DATA_DIR=""
-          -DUSE_FONTCONFIG=0
-    )
+    ADD_DEFINITIONS(-DCR3_DATA_DIR="")
 ENDIF(MAC)
 
 ADD_DEFINITIONS("${Qt5Core_EXECUTABLE_COMPILE_FLAGS}")
@@ -150,6 +140,12 @@ else()
 ADD_EXECUTABLE(cr3 ${CR3_MAN_PAGES} ${CR3_CHANGELOG} ${CR3_SOURCES} ${CR3_RCS} ${CR3_UI_HDRS} ${CR3_MOC_SRCS} ${QM_FILES} ${RES_FILES})
 endif (WIN32)
 
+if(${CMAKE_BUILD_TYPE} STREQUAL Debug)
+  if (CMAKE_HOST_UNIX)
+    configure_file(valgrind_check.sh.cmake ${CMAKE_CURRENT_BINARY_DIR}/valgrind_check.sh)
+  endif(CMAKE_HOST_UNIX)
+endif(${CMAKE_BUILD_TYPE} STREQUAL Debug)
+
 if(WIN32)
 if(CMAKE_GENERATOR MATCHES "Visual Studio.*")
   message("Visual Studio generator detected")
@@ -172,8 +168,6 @@ IF(MAC)
 #/Developer/Qt/lib/libQtCore.a /Developer/Qt/lib/libQtGui.a ${FRAMEWORKS} 
     SET (EXTRA_LIBS ${QT_LIBRARIES} ${STD_LIBS} )
 #${QT_LIBRARIES} 
-ELSEIF (UNIX)
-    SET (EXTRA_LIBS ${QT_LIBRARIES} ${Qt5Core_LIBRARIES} ${Qt5Widgets_LIBRARIES} fontconfig ${STD_LIBS} )
 ELSE()
     SET (EXTRA_LIBS ${STD_LIBS} ${QT_LIBRARIES} ${Qt5Core_LIBRARIES} ${Qt5Widgets_LIBRARIES} )
 ENDIF(MAC)

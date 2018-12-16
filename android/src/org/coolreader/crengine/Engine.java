@@ -36,7 +36,7 @@ public class Engine {
 	public static final Object lock = new Object();
 
 	
-	static final private String LIBRARY_NAME = "cr3engine-3-1-2";
+	static final private String LIBRARY_NAME = "cr3engine-3-2-X";
 
 	private BaseActivity mActivity;
 	
@@ -376,7 +376,7 @@ public class Engine {
 								if (progressIcon != null)
 									mProgress.setIcon(progressIcon);
 								else
-									mProgress.setIcon(R.drawable.cr3_logo);
+									mProgress.setIcon(R.mipmap.cr3_logo);
 								mProgress.setMax(10000);
 								mProgress.setCancelable(false);
 								mProgress.setProgress(mainProgress);

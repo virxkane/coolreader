@@ -932,7 +932,10 @@ LVStreamRef LVDocView::getCoverPageImageStream() {
 	lUInt16 path[] = { el_FictionBook, el_description, el_title_info,
 			el_coverpage, 0 };
 	//lUInt16 path[] = { el_FictionBook, el_description, el_title_info, el_coverpage, el_image, 0 };
-	ldomNode * cover_el = m_doc->getRootNode()->findChildElement(path);
+	ldomNode * rootNode = m_doc->getRootNode();
+	ldomNode * cover_el = 0;
+	if (rootNode)
+		cover_el = rootNode->findChildElement(path);
 	//ldomNode * cover_img_el = m_doc->getRootNode()->findChildElement( path );
 
 	if (cover_el) {
@@ -956,7 +959,10 @@ LVImageSourceRef LVDocView::getCoverPageImage() {
 	lUInt16 path[] = { el_FictionBook, el_description, el_title_info,
 			el_coverpage, 0 };
 	//lUInt16 path[] = { el_FictionBook, el_description, el_title_info, el_coverpage, el_image, 0 };
-	ldomNode * cover_el = m_doc->getRootNode()->findChildElement(path);
+	ldomNode * cover_el = 0;
+	ldomNode * rootNode = m_doc->getRootNode();
+	if (rootNode)
+		cover_el = rootNode->findChildElement(path);
 	//ldomNode * cover_img_el = m_doc->getRootNode()->findChildElement( path );
 
 	if (cover_el) {
@@ -1245,10 +1251,11 @@ void LVDocView::getPageHeaderRectangle(int pageIndex, lvRect & headerRc) {
 		headerRc.bottom = 0;
 	} else {
 		int h = getPageHeaderHeight();
+		int propHeaderMargin = m_props->getIntDef(PROP_ROUNDED_CORNERS_MARGIN, 0);
 		headerRc.bottom = headerRc.top + h;
 		headerRc.top += HEADER_MARGIN;
-		headerRc.left += HEADER_MARGIN;
-		headerRc.right -= HEADER_MARGIN;
+		headerRc.left += HEADER_MARGIN + propHeaderMargin;
+		headerRc.right -= HEADER_MARGIN + propHeaderMargin;
 	}
 }
 
@@ -2369,7 +2376,9 @@ LVImageSourceRef LVDocView::getImageByPoint(lvPoint pt) {
     if (ptr.isNull())
         return res;
     //CRLog::debug("node: %s", LCSTR(ptr.toString()));
-    res = ptr.getNode()->getObjectImageSource();
+    ldomNode* node = ptr.getNode();
+    if (node)
+        res = node->getObjectImageSource();
     if (!res.isNull())
         CRLog::debug("getImageByPoint(%d, %d) : found image %d x %d", pt.x, pt.y, res->GetWidth(), res->GetHeight());
     return res;
@@ -4333,7 +4342,10 @@ bool LVDocView::ParseDocument() {
 
 		if (m_doc_format == doc_format_html) {
 			static lUInt16 path[] = { el_html, el_head, el_title, 0 };
-			ldomNode * el = m_doc->getRootNode()->findChildElement(path);
+			ldomNode * el = NULL;
+			ldomNode * rootNode = m_doc->getRootNode();
+			if (rootNode)
+				el = rootNode->findChildElement(path);
 			if (el != NULL) {
                 lString16 s = el->getText(L' ', 1024);
 				if (!s.empty()) {
@@ -5698,7 +5710,10 @@ void LVDocView::propsUpdateDefaults(CRPropRef props) {
 	props->limitValueList(PROP_PAGE_MARGIN_BOTTOM, def_margin, sizeof(def_margin)/sizeof(int));
 	props->limitValueList(PROP_PAGE_MARGIN_LEFT, def_margin, sizeof(def_margin)/sizeof(int));
 	props->limitValueList(PROP_PAGE_MARGIN_RIGHT, def_margin, sizeof(def_margin)/sizeof(int));
-	static int def_updates[] = { 1, 0, 2, 3, 4, 5, 6, 7, 8, 10, 14 };
+    static int def_rounded_corners_margin[] = {0, 5, 10, 15, 20, 30, 40, 50, 60, 70,80, 90, 100, 120, 140, 160};
+    props->limitValueList(PROP_ROUNDED_CORNERS_MARGIN, def_rounded_corners_margin, sizeof(def_rounded_corners_margin)/sizeof(int));
+
+    static int def_updates[] = { 1, 0, 2, 3, 4, 5, 6, 7, 8, 10, 14 };
 	props->limitValueList(PROP_DISPLAY_FULL_UPDATE_INTERVAL, def_updates, 11);
 	int fs = props->getIntDef(PROP_STATUS_FONT_SIZE, INFO_FONT_SIZE);
     if (fs < MIN_STATUS_FONT_SIZE)
