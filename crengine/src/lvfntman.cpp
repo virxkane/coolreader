@@ -824,7 +824,9 @@ struct LVCharPosInfo
 inline lUInt32 getHash( const struct LVCharTriplet& triplet )
 {
     //return (triplet.prevChar * 1975317 + 164521) ^ (triplet.Char * 1975317 + 164521) ^ (triplet.nextChar * 1975317 + 164521);
-    return getHash((lUInt32)triplet.Char) ^ getHash((lUInt32)triplet.prevChar) ^ getHash((lUInt32)triplet.nextChar);
+    return getHash( (lUInt64)triplet.Char
+                    + (((lUInt64)triplet.prevChar) << 16)
+                    + (((lUInt64)triplet.nextChar) << 32) );
 }
 
 class LVFreeTypeFace : public LVFont
@@ -1179,7 +1181,7 @@ public:
         return res;
     }
 
-    bool hbCalcCharWidth(struct LVCharPosInfo* posInfo, const struct LVCharTriplet& triplet) {
+    bool hbCalcCharWidth(struct LVCharPosInfo* posInfo, const struct LVCharTriplet& triplet, lChar16 def_char) {
         if (!posInfo)
             return false;
         unsigned int segLen = 0;
@@ -1201,18 +1203,31 @@ public:
         hb_shape(_hb_font, _hb_opt_kern_buffer, _hb_opt_kern_features, 2);
         unsigned int glyph_count = hb_buffer_get_length(_hb_opt_kern_buffer);
         if (segLen == glyph_count) {
+            hb_glyph_info_t *glyph_info = hb_buffer_get_glyph_infos(_hb_opt_kern_buffer, &glyph_count);
             hb_glyph_position_t *glyph_pos = hb_buffer_get_glyph_positions(_hb_opt_kern_buffer, &glyph_count);
-            posInfo->offset = glyph_pos[cluster].x_offset >> 6;
-            posInfo->width = glyph_pos[cluster].x_advance >> 6;
-            return true;
+            if (0 != glyph_info[cluster].codepoint) {        // glyph found for this char in this font
+                posInfo->offset = glyph_pos[cluster].x_offset >> 6;
+                posInfo->width = glyph_pos[cluster].x_advance >> 6;
+            } else {
+                // hb_shape() failed or glyph omited in this font, use fallback font
+                glyph_info_t glyph;
+                LVFont *fallback = getFallbackFont();
+                if (fallback) {
+                    if (fallback->getGlyphInfo(triplet.Char, &glyph, def_char)) {
+                        posInfo->offset = glyph.originX;
+                        posInfo->width = glyph.width;
+                    }
+                }
+            }
         } else {
 #ifdef _DEBUG
             CRLog::debug("hbCalcCharWidthWithKerning(): hb_buffer_get_length() return %d, must be %d, return value (-1)", glyph_count, segLen);
 #endif
             return false;
         }
+        return true;
     }
-#endif
+#endif  // USE_HARFBUZZ==1
 
     FT_UInt getCharIndex( lChar16 code, lChar16 def_char ) {
         if ( code=='\t' )
@@ -1343,6 +1358,7 @@ public:
             uint32_t j;
             uint32_t cluster;
             uint32_t prev_cluster = 0;
+            int skipped_chars = 0; // to add to 'i' at end of loop, as 'i' is used later and should be accurate
             for (i = 0; i < (int)glyph_count; i++) {
                 cluster = glyph_info[i].cluster;
                 lChar16 ch = text[cluster];
@@ -1370,7 +1386,8 @@ public:
                 }
                 for (j = prev_cluster + 1; j < cluster; j++) {
                     flags[j] = GET_CHAR_FLAGS(text[j]);
-                    widths[j] = prev_width;		// for chars replaced by ligature
+                    widths[j] = prev_width;		// for chars replaced by ligature, so next chars of a ligature has width=0
+                    skipped_chars++;
                 }
                 prev_cluster = cluster;
                 if (!isHyphen) // avoid soft hyphens inside text string
@@ -1387,8 +1404,11 @@ public:
                 for (j = prev_cluster + 1; j < (uint32_t)len; j++) {
                     flags[j] = GET_CHAR_FLAGS(text[j]);
                     widths[j] = prev_width;
+                    skipped_chars++;
                 }
             }
+            // i is used below to "fill props for rest of chars", so make it accurate
+            i += skipped_chars;
         } else {
             struct LVCharTriplet triplet;
             struct LVCharPosInfo posInfo;
@@ -1406,7 +1426,7 @@ public:
                 else
                     triplet.nextChar = 0;
                 if (!_width_cache2.get(triplet, posInfo)) {
-                    if (hbCalcCharWidth(&posInfo, triplet))
+                    if (hbCalcCharWidth(&posInfo, triplet, def_char))
                         _width_cache2.set(triplet, posInfo);
                     else {
                         posInfo.offset = 0;
@@ -1425,7 +1445,7 @@ public:
                 }
             }
         }
-#else
+#else   // USE_HARFBUZZ==1
         FT_UInt previous = 0;
         int error;
 #if (ALLOW_KERNING==1)
@@ -1487,11 +1507,11 @@ public:
                 lastFitChar = i + 1;
             }
         }
-#endif
+#endif  // USE_HARFBUZZ==1
 
         // fill props for rest of chars
         for ( int ii=i; ii<len; ii++ ) {
-            flags[i] = GET_CHAR_FLAGS( text[ii] );
+            flags[ii] = GET_CHAR_FLAGS( text[ii] );
         }
 
         //maxFit = i;
@@ -1801,7 +1821,7 @@ public:
                     else
                         triplet.nextChar = 0;
                     if (!_width_cache2.get(triplet, posInfo)) {
-                        if (!hbCalcCharWidth(&posInfo, triplet)) {
+                        if (!hbCalcCharWidth(&posInfo, triplet, def_char)) {
                             posInfo.offset = 0;
                             posInfo.width = item->advance;
                         }
@@ -3284,7 +3304,7 @@ bool setalias(lString8 alias,lString8 facename,int id,bool italic, bool bold)
                 }
                 break;
             }
-            bool scal = FT_IS_SCALABLE( face );
+            bool scal = FT_IS_SCALABLE( face ) != 0;
             bool charset = checkCharSet( face );
             //bool monospaced = isMonoSpaced( face );
             if ( !scal || !charset ) {

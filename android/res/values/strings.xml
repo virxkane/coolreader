@@ -563,7 +563,7 @@
     <string name="black_list_enforced">Cannot add this URL since it is added to black list of catalogs which may violate DMCA by request of LitRes.ru</string>
     <string name="black_list_warning">WARNING: this URL is added to black list of catalogs which may violate DMCA by request of LitRes.ru Do you really want to add this catalog?</string>
     <string name="error">Error</string>
-    <string name="cant_open_file">Can\'t open file!</string>
+    <string name="cant_open_file">Can\'t open file \"%s\"!</string>
     <string name="options_app_tts_stop_motion_timeout">Stop reading aloud on motion sensor timeout</string>
     <string name="motion_timeout_off">"Off"</string>
     <string name="motion_timeout_1min">"1 minute"</string>
@@ -616,4 +616,5 @@
     <string name="pages_per_full_swipe_18">"18 pages (track)"</string>
     <string name="pages_per_full_swipe_19">"19 pages (track)"</string>
     <string name="pages_per_full_swipe_20">"20 pages (track)"</string>
+    <string name="datadir_is_removed">Application data directory \"%s\" was removed by other app.\nPossibly it was some kind of disc space optimizer.\nUnfortunately all the settings were lost.</string>
 </resources>

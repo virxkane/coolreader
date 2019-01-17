@@ -3,6 +3,7 @@ package org.coolreader;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Map;
 
 import org.coolreader.Dictionaries.DictionaryException;
@@ -85,6 +86,8 @@ public class CoolReader extends BaseActivity
 
 	private boolean justCreated = false;
 
+	private boolean dataDirIsRemoved = false;
+
 	private static final int PERM_REQUEST_STORAGE_CODE = 1;
 	private static final int PERM_REQUEST_READ_PHONE_STATE_CODE = 2;
 
@@ -92,8 +95,8 @@ public class CoolReader extends BaseActivity
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
-    	startServices();
-    	
+		startServices();
+
 		log.i("CoolReader.onCreate() entered");
 		super.onCreate(savedInstanceState);
 
@@ -151,7 +154,15 @@ public class CoolReader extends BaseActivity
 		N2EpdController.n2MainActivity = this;
         
 		showRootWindow();
-		
+
+		if (null != Engine.getExternalSettingsDirName()) {
+			// if external data directory created or already exist.
+			if (!Engine.DATADIR_IS_EXIST_AT_START && getExtDataDirCreateTime() > 0) {
+				dataDirIsRemoved = true;
+				log.e("DataDir removed by other application!");
+			}
+		}
+
         log.i("CoolReader.onCreate() exiting");
     }
 
@@ -310,6 +321,7 @@ public class CoolReader extends BaseActivity
 				fileToOpen = fileToOpen.replace("%2F", "/");
 			}
 			log.d("FILE_TO_OPEN = " + fileToOpen);
+			final String finalFileToOpen = fileToOpen;
 			loadDocument(fileToOpen, new Runnable() {
 				@Override
 				public void run() {
@@ -317,7 +329,7 @@ public class CoolReader extends BaseActivity
 						@Override
 						public void run() {
 							// if document not loaded show error & then root window
-							ErrorDialog errDialog = new ErrorDialog(CoolReader.this, CoolReader.this.getString(R.string.error), CoolReader.this.getString(R.string.cant_open_file));
+							ErrorDialog errDialog = new ErrorDialog(CoolReader.this, CoolReader.this.getString(R.string.error), CoolReader.this.getString(R.string.cant_open_file, finalFileToOpen));
 							errDialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
 								@Override
 								public void onDismiss(DialogInterface dialog) {
@@ -455,8 +467,18 @@ public class CoolReader extends BaseActivity
 			if (!processIntent(getIntent()))
 				showLastLocation();
 		}
-		
-		
+		if (Engine.getExternalSettingsDirName() != null) {
+			setExtDataDirCreateTime(new Date());
+			log.e("DataDir exist or created!");
+		} else {
+			setExtDataDirCreateTime(null);
+			log.e("DataDir NOT exist and NOT created!");
+		}
+		if (dataDirIsRemoved) {
+			// show message
+			ErrorDialog dlg = new ErrorDialog(this, getString(R.string.error), getString(R.string.datadir_is_removed, Engine.getExternalSettingsDirName()));
+			dlg.show();
+		}
 		stopped = false;
 
 		log.i("CoolReader.onStart() exiting");
@@ -545,15 +567,22 @@ public class CoolReader extends BaseActivity
 				log.i("read&write to storage permissions GRANTED, adding sd card mount point...");
 				Services.refreshServices(this);
 				rebaseSettings();
-				getDBService().setPathCorrector(Engine.getInstance(this).getPathCorrector());
-				getDBService().get().reopenDatabase();
 				waitForCRDBService(new Runnable() {
 					@Override
 					public void run() {
+						getDBService().setPathCorrector(Engine.getInstance(CoolReader.this).getPathCorrector());
+						getDB().reopenDatabase();
 						Services.getHistory().loadFromDB(getDB(), 200);
 					}
 				});
 				mHomeFrame.refreshView();
+			}
+			if (Engine.getExternalSettingsDirName() != null) {
+				setExtDataDirCreateTime(new Date());
+				log.e("DataDir exist or created!");
+			} else {
+				setExtDataDirCreateTime(null);
+				log.e("DataDir NOT exist and NOT created!");
 			}
 		} else if (PERM_REQUEST_READ_PHONE_STATE_CODE == requestCode) {
 			if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -1275,7 +1304,13 @@ public class CoolReader extends BaseActivity
 				if (file == null)
 					file = item;
 				if (file.deleteFile()) {
-					Services.getHistory().removeBookInfo(getDB(), file, true, true);
+					final FileInfo finalFile = file;
+					waitForCRDBService(new Runnable() {
+						@Override
+						public void run() {
+							Services.getHistory().removeBookInfo(getDB(), finalFile, true, true);
+						}
+					});
 				}
 				if (file.parent != null)
 					directoryUpdated(file.parent);
@@ -1288,8 +1323,13 @@ public class CoolReader extends BaseActivity
 		askConfirmation(R.string.win_title_confirm_history_record_delete, new Runnable() {
 			@Override
 			public void run() {
-				Services.getHistory().removeBookInfo(getDB(), item, true, false);
-				directoryUpdated(Services.getScanner().createRecentRoot());
+				waitForCRDBService(new Runnable() {
+					@Override
+					public void run() {
+						Services.getHistory().removeBookInfo(getDB(), item, true, false);
+						directoryUpdated(Services.getScanner().createRecentRoot());
+					}
+				});
 			}
 		});
 	}
@@ -1300,8 +1340,13 @@ public class CoolReader extends BaseActivity
 			@Override
 			public void run() {
 				if (item != null && item.isOPDSDir()) {
-					getDB().removeOPDSCatalog(item.id);
-					directoryUpdated(Services.getScanner().createRecentRoot());
+					waitForCRDBService(new Runnable() {
+						@Override
+						public void run() {
+							getDB().removeOPDSCatalog(item.id);
+							directoryUpdated(Services.getScanner().createRecentRoot());
+						}
+					});
 				}
 			}
 		});
@@ -1313,14 +1358,19 @@ public class CoolReader extends BaseActivity
 	}
 	
 	public void editBookInfo(final FileInfo currDirectory, final FileInfo item) {
-		Services.getHistory().getOrCreateBookInfo(getDB(), item, new BookInfoLoadedCallack() {
+		waitForCRDBService(new Runnable() {
 			@Override
-			public void onBookInfoLoaded(BookInfo bookInfo) {
-				if (bookInfo == null)
-					bookInfo = new BookInfo(item);
-				BookInfoEditDialog dlg = new BookInfoEditDialog(CoolReader.this, currDirectory, bookInfo, 
-						currDirectory.isRecentDir());
-				dlg.show();
+			public void run() {
+				Services.getHistory().getOrCreateBookInfo(getDB(), item, new BookInfoLoadedCallack() {
+					@Override
+					public void onBookInfoLoaded(BookInfo bookInfo) {
+						if (bookInfo == null)
+							bookInfo = new BookInfo(item);
+						BookInfoEditDialog dlg = new BookInfoEditDialog(CoolReader.this, currDirectory, bookInfo,
+								currDirectory.isRecentDir());
+						dlg.show();
+					}
+				});
 			}
 		});
 	}
@@ -1439,7 +1489,6 @@ public class CoolReader extends BaseActivity
 	
 	/**
 	 * Get last stored location.
-	 * @param location
 	 * @return
 	 */
 	private String getLastLocation() {
@@ -1501,6 +1550,22 @@ public class CoolReader extends BaseActivity
 		}
 		// TODO: support other locations as well
 		showRootWindow();
+	}
+
+	public void setExtDataDirCreateTime(Date d) {
+		try {
+			SharedPreferences.Editor editor = getPrefs().edit();
+			editor.putLong(PREF_EXT_DATADIR_CREATETIME, (null != d) ? d.getTime() : 0);
+			editor.commit();
+		} catch (Exception e) {
+			// ignore
+		}
+	}
+
+	public long getExtDataDirCreateTime() {
+		long res = getPrefs().getLong(PREF_EXT_DATADIR_CREATETIME, 0);
+		log.i("getExtDataDirCreateTime() = " + res);
+		return res;
 	}
 
 	public void showCurrentBook() {
