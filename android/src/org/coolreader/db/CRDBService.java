@@ -14,6 +14,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 public class CRDBService extends Service {
+
+	@FunctionalInterface
+	public interface Runnable {
+		void run(CRDBService.LocalBinder db);
+	}
+
 	public static final Logger log = L.create("db");
 	public static final Logger vlog = L.create("db", Log.ASSERT);
 
@@ -226,7 +232,7 @@ public class CRDBService extends Service {
 			public void work() {
 				final ArrayList<FileInfo> list = new ArrayList<FileInfo>(); 
 				mainDB.loadOPDSCatalogs(list);
-				sendTask(handler, new Runnable() {
+				sendTask(handler, new java.lang.Runnable() {
 					@Override
 					public void run() {
 						callback.onOPDSCatalogsLoaded(list);
@@ -241,7 +247,7 @@ public class CRDBService extends Service {
 			@Override
 			public void work() {
 				final ArrayList<String> list = mainDB.loadSearchHistory(book);
-				sendTask(handler, new Runnable() {
+				sendTask(handler, new java.lang.Runnable() {
 					@Override
 					public void run() {
 						callback.onSearchHistoryLoaded(list);
@@ -286,7 +292,7 @@ public class CRDBService extends Service {
 			@Override
 			public void work() {
 				final byte[] data = coverDB.loadBookCoverpage(fileInfo.getPathName());
-				sendTask(handler, new Runnable() {
+				sendTask(handler, new java.lang.Runnable() {
 					@Override
 					public void run() {
 						callback.onCoverpageLoaded(fileInfo, data);
@@ -335,7 +341,7 @@ public class CRDBService extends Service {
 			@Override
 			public void work() {
 				mainDB.loadAuthorsList(p);
-				sendTask(handler, new Runnable() {
+				sendTask(handler, new java.lang.Runnable() {
 					@Override
 					public void run() {
 						callback.onItemGroupsLoaded(p);
@@ -351,7 +357,7 @@ public class CRDBService extends Service {
 			@Override
 			public void work() {
 				mainDB.loadSeriesList(p);
-				sendTask(handler, new Runnable() {
+				sendTask(handler, new java.lang.Runnable() {
 					@Override
 					public void run() {
 						callback.onItemGroupsLoaded(p);
@@ -367,7 +373,7 @@ public class CRDBService extends Service {
 			@Override
 			public void work() {
 				mainDB.loadTitleList(p);
-				sendTask(handler, new Runnable() {
+				sendTask(handler, new java.lang.Runnable() {
 					@Override
 					public void run() {
 						callback.onItemGroupsLoaded(p);
@@ -383,7 +389,7 @@ public class CRDBService extends Service {
 			public void work() {
 				final ArrayList<FileInfo> list = new ArrayList<FileInfo>();
 				mainDB.findAuthorBooks(list, authorId);
-				sendTask(handler, new Runnable() {
+				sendTask(handler, new java.lang.Runnable() {
 					@Override
 					public void run() {
 						callback.onFileInfoListLoaded(list);
@@ -399,7 +405,7 @@ public class CRDBService extends Service {
 			public void work() {
 				final ArrayList<FileInfo> list = new ArrayList<FileInfo>();
 				mainDB.findSeriesBooks(list, seriesId);
-				sendTask(handler, new Runnable() {
+				sendTask(handler, new java.lang.Runnable() {
 					@Override
 					public void run() {
 						callback.onFileInfoListLoaded(list);
@@ -415,7 +421,7 @@ public class CRDBService extends Service {
 			public void work() {
 				final ArrayList<FileInfo> list = new ArrayList<FileInfo>();
 				mainDB.findBooksByRating(list, minRate, maxRate);
-				sendTask(handler, new Runnable() {
+				sendTask(handler, new java.lang.Runnable() {
 					@Override
 					public void run() {
 						callback.onFileInfoListLoaded(list);
@@ -431,7 +437,7 @@ public class CRDBService extends Service {
 			public void work() {
 				final ArrayList<FileInfo> list = new ArrayList<FileInfo>();
 				mainDB.findBooksByState(list, state);
-				sendTask(handler, new Runnable() {
+				sendTask(handler, new java.lang.Runnable() {
 					@Override
 					public void run() {
 						callback.onFileInfoListLoaded(list);
@@ -446,7 +452,7 @@ public class CRDBService extends Service {
 			@Override
 			public void work() {
 				final ArrayList<BookInfo> list = mainDB.loadRecentBooks(maxCount);
-				sendTask(handler, new Runnable() {
+				sendTask(handler, new java.lang.Runnable() {
 					@Override
 					public void run() {
 						callback.onRecentBooksListLoaded(list);
@@ -456,11 +462,11 @@ public class CRDBService extends Service {
 		});
 	}
 	
-	public void sync(final Runnable callback, final Handler handler) {
+	public void sync(final java.lang.Runnable callback, final Handler handler) {
 		execTask(new Task("sync") {
 			@Override
 			public void work() {
-				sendTask(handler, new Runnable() {
+				sendTask(handler, new java.lang.Runnable() {
 					@Override
 					public void run() {
 						callback.run();
@@ -475,7 +481,7 @@ public class CRDBService extends Service {
 			@Override
 			public void work() {
 				final ArrayList<FileInfo> list = mainDB.findByPatterns(maxCount, author, title, series, filename);
-				sendTask(handler, new Runnable() {
+				sendTask(handler, new java.lang.Runnable() {
 					@Override
 					public void run() {
 						callback.onBooksFound(list);
@@ -507,7 +513,7 @@ public class CRDBService extends Service {
 			@Override
 			public void work() {
 				final BookInfo bookInfo = mainDB.loadBookInfo(fileInfo);
-				sendTask(handler, new Runnable() {
+				sendTask(handler, new java.lang.Runnable() {
 					@Override
 					public void run() {
 						callback.onBooksInfoLoaded(bookInfo);
@@ -522,7 +528,7 @@ public class CRDBService extends Service {
 			@Override
 			public void work() {
 				final ArrayList<FileInfo> list = mainDB.loadFileInfos(pathNames);
-				sendTask(handler, new Runnable() {
+				sendTask(handler, new java.lang.Runnable() {
 					@Override
 					public void run() {
 						callback.onFileInfoListLoaded(list);
@@ -600,7 +606,7 @@ public class CRDBService extends Service {
             @Override
             public void work() {
                 final ArrayList<FileInfo> favorites = mainDB.loadFavoriteFolders();
-                sendTask(handler, new Runnable() {
+                sendTask(handler, new java.lang.Runnable() {
                     @Override
                     public void run() {
                         callback.onFileInfoListLoaded(favorites);
@@ -630,7 +636,7 @@ public class CRDBService extends Service {
         flush();
    	}
 
-	private abstract class Task implements Runnable {
+	private abstract class Task implements java.lang.Runnable {
 		private final String name;
 		public Task(String name) {
 			this.name = name;
@@ -682,7 +688,7 @@ public class CRDBService extends Service {
 	 * @param handler is handler to send task to, null to run immediately
 	 * @param task is Runnable to execute
 	 */
-	private void sendTask(Handler handler, Runnable task) {
+	private void sendTask(Handler handler, java.lang.Runnable task) {
 		try {
 			if (handler != null) {
 				vlog.v("Senging task to " + handler.toString());
@@ -767,7 +773,7 @@ public class CRDBService extends Service {
     		getService().loadRecentBooks(maxCount, callback, new Handler());
     	}
 
-    	public void sync(final Runnable callback) {
+    	public void sync(final java.lang.Runnable callback) {
     		getService().sync(callback, new Handler());
     	}
 

@@ -39,9 +39,13 @@ public class SearchDlg extends BaseDialog {
     	if ( pattern==null || pattern.length()==0 ) 
     		mCoolReader.showToast("No pattern specified");
     	else
-			activity.getDB().saveSearchHistory(mBookInfo,
-					mEditView.getText().toString());
-    		mReaderView.findText( mEditView.getText().toString(), mReverse.isChecked(), !mCaseSensitive.isChecked() );
+    		activity.runInCRDBService(new CRDBService.Runnable() {
+				@Override
+				public void run(CRDBService.LocalBinder db) {
+					db.saveSearchHistory(mBookInfo, mEditView.getText().toString());
+				}
+			});
+    	mReaderView.findText( mEditView.getText().toString(), mReverse.isChecked(), !mCaseSensitive.isChecked() );
         cancel();
 	}
 	
@@ -163,13 +167,19 @@ public class SearchDlg extends BaseDialog {
     		mEditView.setText(initialText);
     	mCaseSensitive = (CheckBox)mDialogView.findViewById(R.id.search_case_sensitive);
     	mReverse = (CheckBox)mDialogView.findViewById(R.id.search_reverse);
-		activity.getDB().loadSearchHistory(this.mBookInfo, new CRDBService.SearchHistoryLoadingCallback() {
+    	final BookInfo bookInfo = this.mBookInfo;
+		activity.runInCRDBService(new CRDBService.Runnable() {
 			@Override
-			public void onSearchHistoryLoaded(ArrayList<String> searches) {
-				mSearches = searches;
-				ViewGroup body = (ViewGroup)mDialogView.findViewById(R.id.history_list);
-				mList = new SearchDlg.SearchList(activity, false);
-				body.addView(mList);
+			public void run(CRDBService.LocalBinder db) {
+				db.loadSearchHistory(bookInfo, new CRDBService.SearchHistoryLoadingCallback() {
+					@Override
+					public void onSearchHistoryLoaded(ArrayList<String> searches) {
+						mSearches = searches;
+						ViewGroup body = (ViewGroup)mDialogView.findViewById(R.id.history_list);
+						mList = new SearchDlg.SearchList(activity, false);
+						body.addView(mList);
+					}
+				});
 			}
 		});
 		//setView(mDialogView);

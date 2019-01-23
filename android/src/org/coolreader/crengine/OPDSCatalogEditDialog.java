@@ -6,11 +6,11 @@ import org.coolreader.R;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
+import org.coolreader.db.CRDBService;
 
 public class OPDSCatalogEditDialog extends BaseDialog {
 
 	private final CoolReader mActivity;
-	private final LayoutInflater mInflater;
 	private final FileInfo mItem;
 	private final EditText nameEdit;
 	private final EditText urlEdit;
@@ -25,8 +25,8 @@ public class OPDSCatalogEditDialog extends BaseDialog {
 		mActivity = activity;
 		mItem = item;
 		mOnUpdate = onUpdate;
-		mInflater = LayoutInflater.from(getContext());
-		View view = mInflater.inflate(R.layout.catalog_edit_dialog, null);
+		LayoutInflater inflater = LayoutInflater.from(getContext());
+		View view = inflater.inflate(R.layout.catalog_edit_dialog, null);
 		nameEdit = (EditText) view.findViewById(R.id.catalog_name);
 		urlEdit = (EditText) view.findViewById(R.id.catalog_url);
 		usernameEdit = (EditText) view.findViewById(R.id.catalog_username);
@@ -74,10 +74,15 @@ public class OPDSCatalogEditDialog extends BaseDialog {
 	}
 	
 	private void save() {
-		activity.getDB().saveOPDSCatalog(mItem.id,
-				urlEdit.getText().toString(), nameEdit.getText().toString(), 
-				usernameEdit.getText().toString(), passwordEdit.getText().toString());
-		mOnUpdate.run();
+		activity.runInCRDBService(new CRDBService.Runnable() {
+			@Override
+			public void run(CRDBService.LocalBinder db) {
+				db.saveOPDSCatalog(mItem.id,
+						urlEdit.getText().toString(), nameEdit.getText().toString(),
+						usernameEdit.getText().toString(), passwordEdit.getText().toString());
+				mOnUpdate.run();
+			}
+		});
 		super.onPositiveButtonClick();
 	}
 

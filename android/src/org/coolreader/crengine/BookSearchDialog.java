@@ -15,7 +15,6 @@ import android.widget.TextView;
 
 public class BookSearchDialog extends BaseDialog {
 	
-	private final CoolReader mCoolReader;
 	private final LayoutInflater mInflater;
 	final EditText authorEdit;
 	final EditText titleEdit;
@@ -31,9 +30,8 @@ public class BookSearchDialog extends BaseDialog {
 	public BookSearchDialog(CoolReader activity, SearchCallback callback)
 	{
 		super(activity, activity.getString( R.string.dlg_book_search), true, false);
-		mCoolReader = activity;
 		this.callback = callback;
-		setTitle(mCoolReader.getString( R.string.dlg_book_search));
+		setTitle(activity.getString( R.string.dlg_book_search));
 		mInflater = LayoutInflater.from(getContext());
 		View view = mInflater.inflate(R.layout.book_search_dialog, null);
 		authorEdit = (EditText)view.findViewById(R.id.search_text_author);
@@ -81,7 +79,7 @@ public class BookSearchDialog extends BaseDialog {
 						@Override
 						public void done(FileInfo[] results) {
 							searchActive = false;
-							statusText.setText(mCoolReader.getString(R.string.dlg_book_search_found) + " " + results.length);
+							statusText.setText(activity.getString(R.string.dlg_book_search_found) + " " + results.length);
 							if ( searchTaskId != mySearchTaskId ) {
 								postSearchTask();
 							}
@@ -112,12 +110,17 @@ public class BookSearchDialog extends BaseDialog {
 		final String series = seriesEdit.getText().toString().trim();
 		final String title = titleEdit.getText().toString().trim();
 		final String filename = filenameEdit.getText().toString().trim();
-		if (mCoolReader == null || mCoolReader.getDB() == null)
+		if (activity == null)
 			return;
-		mCoolReader.getDB().findByPatterns(MAX_RESULTS, author, title, series, filename, new CRDBService.BookSearchCallback() {
+		activity.runInCRDBService(new CRDBService.Runnable() {
 			@Override
-			public void onBooksFound(ArrayList<FileInfo> fileList) {
-				cb.done(fileList.toArray(new FileInfo[fileList.size()]));
+			public void run(CRDBService.LocalBinder db) {
+				db.findByPatterns(MAX_RESULTS, author, title, series, filename, new CRDBService.BookSearchCallback() {
+					@Override
+					public void onBooksFound(ArrayList<FileInfo> fileList) {
+						cb.done(fileList.toArray(new FileInfo[fileList.size()]));
+					}
+				});
 			}
 		});
 	}

@@ -5,6 +5,7 @@ import java.io.File;
 import org.coolreader.CoolReader;
 import org.coolreader.R;
 import org.coolreader.crengine.CoverpageManager.CoverpageBitmapReadyListener;
+import org.coolreader.db.CRDBService;
 import org.coolreader.plugins.BookInfoCallback;
 import org.coolreader.plugins.DownloadBookCallback;
 import org.coolreader.plugins.OnlineStoreBook;
@@ -130,14 +131,19 @@ public class OnlineStoreBookInfoDialog extends BaseDialog {
         image.setMaxHeight(h);
         image.setMinimumWidth(w);
         image.setMaxWidth(w);
-        Bitmap bmp = Bitmap.createBitmap(w, h, Config.RGB_565);
-        Services.getCoverpageManager().drawCoverpageFor(mActivity.getDB(), mFileInfo, bmp, new CoverpageBitmapReadyListener() {
+        final Bitmap bmp = Bitmap.createBitmap(w, h, Config.RGB_565);
+        mActivity.runInCRDBService(new CRDBService.Runnable() {
 			@Override
-			public void onCoverpageReady(CoverpageManager.ImageItem file, Bitmap bitmap) {
-		        BitmapDrawable drawable = new BitmapDrawable(bitmap);
-				image.setImageDrawable(drawable);
+			public void run(CRDBService.LocalBinder db) {
+				Services.getCoverpageManager().drawCoverpageFor(db, mFileInfo, bmp, new CoverpageBitmapReadyListener() {
+					@Override
+					public void onCoverpageReady(CoverpageManager.ImageItem file, Bitmap bitmap) {
+						BitmapDrawable drawable = new BitmapDrawable(bitmap);
+						image.setImageDrawable(drawable);
+					}
+				});
 			}
-		}); 
+		});
 
         if (mBookInfo.book.rating > 0)
         	rbBookRating.setRating(mBookInfo.book.rating / 2.0f);

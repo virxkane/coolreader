@@ -78,15 +78,24 @@ public class BaseActivity extends Activity implements Settings {
 	 * Wait until database is bound.
 	 * @param readyCallback to be called after DB is ready
 	 */
+	/*
 	public synchronized void waitForCRDBService(Runnable readyCallback) {
 		if (mCRDBService == null) {
 			mCRDBService = new CRDBServiceAccessor(this, Engine.getInstance(this).getPathCorrector());
 		}
         mCRDBService.bind(readyCallback);
 	}
+	*/
+
+	public synchronized void runInCRDBService(CRDBService.Runnable callback) {
+		if (mCRDBService == null) {
+			mCRDBService = new CRDBServiceAccessor(this, Engine.getInstance(this).getPathCorrector());
+		}
+		mCRDBService.bind(callback);
+	}
 
 	public CRDBServiceAccessor getDBService() { return mCRDBService; }
-	public CRDBService.LocalBinder getDB() { return mCRDBService != null ? mCRDBService.get() : null; }
+	//public CRDBService.LocalBinder getDB() { return mCRDBService != null ? mCRDBService.get() : null; }
 
 	public Properties settings() { return mSettingsManager.mSettings; }
 
