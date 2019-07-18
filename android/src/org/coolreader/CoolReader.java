@@ -39,6 +39,7 @@ import org.coolreader.crengine.ReaderViewLayout;
 import org.coolreader.crengine.Services;
 import org.coolreader.crengine.TTS;
 import org.coolreader.crengine.TTS.OnTTSCreatedListener;
+import org.coolreader.db.CRDBService;
 import org.coolreader.donations.CRDonationService;
 import org.koekak.android.ebookdownloader.SonyBookSelector;
 
@@ -458,20 +459,20 @@ public class CoolReader extends BaseActivity
 //		});
 
 		if (mHomeFrame == null) {
-			waitForCRDBService(new Runnable() {
+			runInCRDBService(new CRDBService.Runnable() {
 				@Override
-				public void run() {
-					Services.getHistory().loadFromDB(getDB(), 200);
-					
+				public void run(CRDBService.LocalBinder db) {
+					Services.getHistory().loadFromDB(db, 200);
+
 					mHomeFrame = new CRRootView(CoolReader.this);
 					Services.getCoverpageManager().addCoverpageReadyListener(mHomeFrame);
 					mHomeFrame.requestFocus();
-					
+
 					showRootWindow();
 					setSystemUiVisibility();
-					
+
 					notifySettingsChanged();
-					
+
 					showNotifications();
 				}
 			});
@@ -590,12 +591,12 @@ public class CoolReader extends BaseActivity
 				log.i("read&write to storage permissions GRANTED, adding sd card mount point...");
 				Services.refreshServices(this);
 				rebaseSettings();
-				waitForCRDBService(new Runnable() {
+				runInCRDBService(new CRDBService.Runnable() {
 					@Override
-					public void run() {
+					public void run(CRDBService.LocalBinder db) {
 						getDBService().setPathCorrector(Engine.getInstance(CoolReader.this).getPathCorrector());
-						getDB().reopenDatabase();
-						Services.getHistory().loadFromDB(getDB(), 200);
+						db.reopenDatabase();
+						Services.getHistory().loadFromDB(db, 200);
 					}
 				});
 				mHomeFrame.refreshView();
@@ -743,9 +744,9 @@ public class CoolReader extends BaseActivity
 	}
 	
 	private void runInReader(final Runnable task) {
-		waitForCRDBService(new Runnable() {
-			@Override
-			public void run() {
+		//waitForCRDBService(new Runnable() {
+		//	@Override
+		//	public void run() {
 				if (mReaderFrame != null) {
 					task.run();
 					setCurrentFrame(mReaderFrame);
@@ -777,8 +778,8 @@ public class CoolReader extends BaseActivity
 					if (initialBatteryState >= 0)
 						mReaderView.setBatteryState(initialBatteryState);
 				}
-			}
-		});
+		//	}
+		//});
 		
 	}
 	
@@ -787,9 +788,9 @@ public class CoolReader extends BaseActivity
 	}
 	
 	private void runInBrowser(final Runnable task) {
-		waitForCRDBService(new Runnable() {
-			@Override
-			public void run() {
+		//waitForCRDBService(new Runnable() {
+		//	@Override
+		//	public void run() {
 				if (mBrowserFrame != null) {
 					task.run();
 					setCurrentFrame(mBrowserFrame);
@@ -873,8 +874,8 @@ public class CoolReader extends BaseActivity
 //					if (getIntent() == null)
 //						mBrowser.showDirectory(Services.getScanner().getDownloadDirectory(), null);
 				}
-			}
-		});
+		//	}
+		//});
 		
 	}
 	
@@ -892,12 +893,12 @@ public class CoolReader extends BaseActivity
 	}
 	
 	public static final String OPEN_FILE_PARAM = "FILE_TO_OPEN";
-	public void loadDocument(final String item, final Runnable callback)
+	public void loadDocument(final String item, final Runnable failCallback)
 	{
 		runInReader(new Runnable() {
 			@Override
 			public void run() {
-				mReaderView.loadDocument(item, callback);
+				mReaderView.loadDocument(item, failCallback);
 			}
 		});
 	}
@@ -907,7 +908,7 @@ public class CoolReader extends BaseActivity
 		loadDocument(item, null);
 	}
 	
-	public void loadDocument( FileInfo item, Runnable callback )
+	public void loadDocument(FileInfo item, Runnable callback )
 	{
 		log.d("Activities.loadDocument(" + item.pathname + ")");
 		loadDocument(item.getPathName(), callback);
@@ -1327,10 +1328,10 @@ public class CoolReader extends BaseActivity
 					file = item;
 				if (file.deleteFile()) {
 					final FileInfo finalFile = file;
-					waitForCRDBService(new Runnable() {
+					runInCRDBService(new CRDBService.Runnable() {
 						@Override
-						public void run() {
-							Services.getHistory().removeBookInfo(getDB(), finalFile, true, true);
+						public void run(CRDBService.LocalBinder db) {
+							Services.getHistory().removeBookInfo(db, finalFile, true, true);
 						}
 					});
 				}
@@ -1345,10 +1346,10 @@ public class CoolReader extends BaseActivity
 		askConfirmation(R.string.win_title_confirm_history_record_delete, new Runnable() {
 			@Override
 			public void run() {
-				waitForCRDBService(new Runnable() {
+				runInCRDBService(new CRDBService.Runnable() {
 					@Override
-					public void run() {
-						Services.getHistory().removeBookInfo(getDB(), item, true, false);
+					public void run(CRDBService.LocalBinder db) {
+						Services.getHistory().removeBookInfo(db, item, true, false);
 						directoryUpdated(Services.getScanner().createRecentRoot());
 					}
 				});
@@ -1362,10 +1363,10 @@ public class CoolReader extends BaseActivity
 			@Override
 			public void run() {
 				if (item != null && item.isOPDSDir()) {
-					waitForCRDBService(new Runnable() {
+					runInCRDBService(new CRDBService.Runnable() {
 						@Override
-						public void run() {
-							getDB().removeOPDSCatalog(item.id);
+						public void run(CRDBService.LocalBinder db) {
+							db.removeOPDSCatalog(item.id);
 							directoryUpdated(Services.getScanner().createRecentRoot());
 						}
 					});
@@ -1380,10 +1381,10 @@ public class CoolReader extends BaseActivity
 	}
 	
 	public void editBookInfo(final FileInfo currDirectory, final FileInfo item) {
-		waitForCRDBService(new Runnable() {
+		runInCRDBService(new CRDBService.Runnable() {
 			@Override
-			public void run() {
-				Services.getHistory().getOrCreateBookInfo(getDB(), item, new BookInfoLoadedCallack() {
+			public void run(CRDBService.LocalBinder db) {
+				Services.getHistory().getOrCreateBookInfo(db, item, new BookInfoLoadedCallack() {
 					@Override
 					public void onBookInfoLoaded(BookInfo bookInfo) {
 						if (bookInfo == null)
@@ -1511,7 +1512,6 @@ public class CoolReader extends BaseActivity
 	
 	/**
 	 * Get last stored location.
-	 * @return
 	 */
 	private String getLastLocation() {
         String res = getPrefs().getString(PREF_LAST_LOCATION, null);

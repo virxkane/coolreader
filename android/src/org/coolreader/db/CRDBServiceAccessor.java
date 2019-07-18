@@ -36,14 +36,14 @@ public class CRDBServiceAccessor {
     		mService.setPathCorrector(pathCorrector);
 	}
 
-	private ArrayList<Runnable> onConnectCallbacks = new ArrayList<Runnable>();
+	private ArrayList<CRDBService.Runnable> onConnectCallbacks = new ArrayList<CRDBService.Runnable>();
 	
 	private boolean bindIsCalled;
-    public void bind(final Runnable boundCallback) {
+    public void bind(final CRDBService.Runnable boundCallback) {
     	if (mService != null) {
         	Log.v(TAG, "CRDBService is already bound");
         	if (boundCallback != null)
-        		boundCallback.run();
+        		boundCallback.run(mService);
     		return;
     	}
     	//Log.v(TAG, "binding CRDBService");
@@ -79,8 +79,8 @@ public class CRDBServiceAccessor {
         		mService.setPathCorrector(pathCorrector);
         	if (onConnectCallbacks.size() != 0) {
         		// run once
-        		for (Runnable callback : onConnectCallbacks)
-        			callback.run();
+        		for (CRDBService.Runnable callback : onConnectCallbacks)
+        			callback.run(mService);
         		onConnectCallbacks.clear();
         	}
         }

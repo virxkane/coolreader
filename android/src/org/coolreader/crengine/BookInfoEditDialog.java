@@ -29,6 +29,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RadioGroup;
 import android.widget.RatingBar;
+import org.coolreader.db.CRDBService;
 
 public class BookInfoEditDialog extends BaseDialog {
 	private CoolReader mActivity;
@@ -235,7 +236,7 @@ public class BookInfoEditDialog extends BaseDialog {
 		super.onCreate(savedInstanceState);
 
         mInflater = LayoutInflater.from(getContext());
-        FileInfo file = mBookInfo.getFileInfo();
+        final FileInfo file = mBookInfo.getFileInfo();
         ViewGroup view = (ViewGroup)mInflater.inflate(R.layout.book_info_edit_dialog, null);
         
         ImageButton btnBack = (ImageButton)view.findViewById(R.id.base_dlg_btn_back);
@@ -284,14 +285,19 @@ public class BookInfoEditDialog extends BaseDialog {
         image.setMaxHeight(h);
         image.setMinimumWidth(w);
         image.setMaxWidth(w);
-        Bitmap bmp = Bitmap.createBitmap(w, h, Config.RGB_565);
-        Services.getCoverpageManager().drawCoverpageFor(mActivity.getDB(), file, bmp, new CoverpageBitmapReadyListener() {
+        final Bitmap bmp = Bitmap.createBitmap(w, h, Config.RGB_565);
+        mActivity.runInCRDBService(new CRDBService.Runnable() {
 			@Override
-			public void onCoverpageReady(CoverpageManager.ImageItem file, Bitmap bitmap) {
-		        BitmapDrawable drawable = new BitmapDrawable(bitmap);
-				image.setImageDrawable(drawable);
+			public void run(CRDBService.LocalBinder db) {
+				Services.getCoverpageManager().drawCoverpageFor(db, file, bmp, new CoverpageBitmapReadyListener() {
+					@Override
+					public void onCoverpageReady(CoverpageManager.ImageItem file, Bitmap bitmap) {
+						BitmapDrawable drawable = new BitmapDrawable(bitmap);
+						image.setImageDrawable(drawable);
+					}
+				});
 			}
-		}); 
+		});
 
         final ImageView progress = (ImageView)view.findViewById(R.id.book_progress);
         int percent = -1;
@@ -379,8 +385,13 @@ public class BookInfoEditDialog extends BaseDialog {
 			state = FileInfo.STATE_FINISHED;
         modified = file.setReadingState(state) || modified;
         if (modified) {
-        	mActivity.getDB().saveBookInfo(mBookInfo);
-        	mActivity.getDB().flush();
+        	mActivity.runInCRDBService(new CRDBService.Runnable() {
+				@Override
+				public void run(CRDBService.LocalBinder db) {
+					db.saveBookInfo(mBookInfo);
+					db.flush();
+				}
+			});
         	BookInfo bi = Services.getHistory().getBookInfo(file);
         	if (bi != null)
         		bi.getFileInfo().setFileProperties(file);

@@ -135,15 +135,20 @@ public class CRRootView extends ViewGroup implements CoverpageReadyListener {
     	currentBook = book;
     	
     	// set current book cover page
-		ImageView cover = (ImageView)mView.findViewById(R.id.book_cover);
+		final ImageView cover = (ImageView)mView.findViewById(R.id.book_cover);
 		if (currentBook != null) {
-			FileInfo item = currentBook.getFileInfo();
-			cover.setImageDrawable(mCoverpageManager.getCoverpageDrawableFor(mActivity.getDB(), item, coverWidth, coverHeight));
+			final FileInfo item = currentBook.getFileInfo();
 			cover.setMinimumHeight(coverHeight);
 			cover.setMinimumWidth(coverWidth);
 			cover.setMaxHeight(coverHeight);
 			cover.setMaxWidth(coverWidth);
 			cover.setTag(new CoverpageManager.ImageItem(item, coverWidth, coverHeight));
+			mActivity.runInCRDBService(new CRDBService.Runnable() {
+				@Override
+				public void run(CRDBService.LocalBinder db) {
+					cover.setImageDrawable(mCoverpageManager.getCoverpageDrawableFor(db, item, coverWidth, coverHeight));
+				}
+			});
 
 			setBookInfoItem(mView, R.id.lbl_book_author, Utils.formatAuthors(item.authors));
 			setBookInfoItem(mView, R.id.lbl_book_title, currentBook.getFileInfo().title);
@@ -178,7 +183,7 @@ public class CRRootView extends ViewGroup implements CoverpageReadyListener {
 		mRecentBooksScroll.removeAllViews();
 		for (final FileInfo item : files) {
 			final View view = inflater.inflate(R.layout.root_item_recent_book, null);
-			ImageView cover = (ImageView)view.findViewById(R.id.book_cover);
+			final ImageView cover = (ImageView)view.findViewById(R.id.book_cover);
 			TextView label = (TextView)view.findViewById(R.id.book_name);
 			cover.setMinimumHeight(coverHeight);
 			cover.setMaxHeight(coverHeight);
@@ -197,7 +202,12 @@ public class CRRootView extends ViewGroup implements CoverpageReadyListener {
 			} else {
 				cover.setMinimumWidth(coverWidth);
 				cover.setTag(new CoverpageManager.ImageItem(item, coverWidth, coverHeight));
-				cover.setImageDrawable(mCoverpageManager.getCoverpageDrawableFor(mActivity.getDB(), item, coverWidth, coverHeight));
+				mActivity.runInCRDBService(new CRDBService.Runnable() {
+					@Override
+					public void run(CRDBService.LocalBinder db) {
+						cover.setImageDrawable(mCoverpageManager.getCoverpageDrawableFor(db, item, coverWidth, coverHeight));
+					}
+				});
 				if (label != null) {
 					String title = item.title;
 					String authors = Utils.formatAuthors(item.authors);
@@ -234,11 +244,11 @@ public class CRRootView extends ViewGroup implements CoverpageReadyListener {
 		BackgroundThread.instance().postGUI(new Runnable() {
 			@Override
 			public void run() {
-				mActivity.waitForCRDBService(new Runnable() {
+				mActivity.runInCRDBService(new CRDBService.Runnable() {
 					@Override
-					public void run() {
-						if (Services.getHistory() != null && mActivity.getDB() != null)
-							Services.getHistory().getOrLoadRecentBooks(mActivity.getDB(), new CRDBService.RecentBooksLoadingCallback() {
+					public void run(CRDBService.LocalBinder db) {
+						if (Services.getHistory() != null)
+							Services.getHistory().getOrLoadRecentBooks(db, new CRDBService.RecentBooksLoadingCallback() {
 								@Override
 								public void onRecentBooksListLoaded(ArrayList<BookInfo> bookList) {
 									updateCurrentBook(bookList != null && bookList.size() > 0 ? bookList.get(0) : null);
@@ -252,10 +262,10 @@ public class CRRootView extends ViewGroup implements CoverpageReadyListener {
 	}
 
 	public void refreshOnlineCatalogs() {
-		mActivity.waitForCRDBService(new Runnable() {
+		mActivity.runInCRDBService(new CRDBService.Runnable() {
 			@Override
-			public void run() {
-				mActivity.getDB().loadOPDSCatalogs(new OPDSCatalogsLoadingCallback() {
+			public void run(CRDBService.LocalBinder db) {
+				db.loadOPDSCatalogs(new OPDSCatalogsLoadingCallback() {
 					@Override
 					public void onOPDSCatalogsLoaded(ArrayList<FileInfo> catalogs) {
 						updateOnlineCatalogs(catalogs);
@@ -447,7 +457,12 @@ public class CRRootView extends ViewGroup implements CoverpageReadyListener {
                             item.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
                                 @Override
                                 public boolean onMenuItemClick(MenuItem menuItem) {
-                                    service.moveFavoriteFolder(mActivity.getDB(), folder, true);
+                                    mActivity.runInCRDBService(new CRDBService.Runnable() {
+                                        @Override
+                                        public void run(CRDBService.LocalBinder db) {
+                                            service.moveFavoriteFolder(db, folder, true);
+                                        }
+                                    });
                                     return true;
                                 }
                             });
@@ -457,7 +472,12 @@ public class CRRootView extends ViewGroup implements CoverpageReadyListener {
                             item.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
                                 @Override
                                 public boolean onMenuItemClick(MenuItem menuItem) {
-                                    service.moveFavoriteFolder(mActivity.getDB(), folder, false);
+                                    mActivity.runInCRDBService(new CRDBService.Runnable() {
+                                        @Override
+                                        public void run(CRDBService.LocalBinder db) {
+                                            service.moveFavoriteFolder(db, folder, false);
+                                        }
+                                    });
                                     return true;
                                 }
                             });
@@ -466,7 +486,12 @@ public class CRRootView extends ViewGroup implements CoverpageReadyListener {
                             item.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
                                 @Override
                                 public boolean onMenuItemClick(MenuItem menuItem) {
-                                    service.removeFavoriteFolder(mActivity.getDB(), folder);
+                                    mActivity.runInCRDBService(new CRDBService.Runnable() {
+                                        @Override
+                                        public void run(CRDBService.LocalBinder db) {
+                                            service.removeFavoriteFolder(db, folder);
+                                        }
+                                    });
                                     return true;
                                 }
                             });
@@ -595,10 +620,10 @@ public class CRRootView extends ViewGroup implements CoverpageReadyListener {
 		refreshRecentBooks();
 
 		// Must be initialized FileSystemFolders.favoriteFolders firstly to exclude NullPointerException.
-		mActivity.waitForCRDBService(new Runnable() {
+		mActivity.runInCRDBService(new CRDBService.Runnable() {
 			@Override
-			public void run() {
-				Services.getFileSystemFolders().loadFavoriteFolders(mActivity.getDB());
+			public void run(CRDBService.LocalBinder db) {
+				Services.getFileSystemFolders().loadFavoriteFolders(db);
 			}
 		});
 
@@ -651,10 +676,10 @@ public class CRRootView extends ViewGroup implements CoverpageReadyListener {
 		updateDelimiterTheme(R.id.delimiter5);
 
 		// Must be initialized FileSystemFolders.favoriteFolders firstly to exclude NullPointerException.
-		mActivity.waitForCRDBService(new Runnable() {
+		mActivity.runInCRDBService(new CRDBService.Runnable() {
 			@Override
-			public void run() {
-				Services.getFileSystemFolders().loadFavoriteFolders(mActivity.getDB());
+			public void run(CRDBService.LocalBinder db) {
+				Services.getFileSystemFolders().loadFavoriteFolders(db);
 			}
 		});
 

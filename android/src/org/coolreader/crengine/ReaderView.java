@@ -13,6 +13,7 @@ import org.coolreader.CoolReader;
 import org.coolreader.R;
 import org.coolreader.crengine.Engine.HyphDict;
 import org.coolreader.crengine.InputDialog.InputHandler;
+import org.coolreader.db.CRDBService;
 import org.koekak.android.ebookdownloader.SonyBookSelector;
 
 import android.content.ContentValues;
@@ -1482,12 +1483,31 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 		}
 		return false;
 	}
-	
+
+	private void saveBookInfo()
+	{
+		if (null != mBookInfo) {
+			final BookInfo bookInfo = new BookInfo(mBookInfo);
+			mActivity.runInCRDBService(new CRDBService.Runnable() {
+				@Override
+				public void run(CRDBService.LocalBinder db) {
+					db.saveBookInfo(bookInfo);
+					db.flush();
+				}
+			});
+		}
+	}
+
 	public Bookmark removeBookmark(final Bookmark bookmark) {
-		Bookmark removed = mBookInfo.removeBookmark(bookmark);
+		final Bookmark removed = mBookInfo.removeBookmark(bookmark);
 		if (removed != null) {
 			if ( removed.getId()!=null ) {
-				mActivity.getDB().deleteBookmark(removed);
+				mActivity.runInCRDBService(new CRDBService.Runnable() {
+					@Override
+					public void run(CRDBService.LocalBinder db) {
+						db.deleteBookmark(removed);
+					}
+				});
 			}
 			highlightBookmarks();
 		}
@@ -1528,7 +1548,7 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 						mBookInfo.addBookmark(bm);
 					else
 						mBookInfo.setShortcutBookmark(shortcut, bm);
-					mActivity.getDB().saveBookInfo(mBookInfo);
+					saveBookInfo();
 					String s;
 					if ( shortcut==0 )
 						s = mActivity.getString(R.string.toast_position_bookmark_is_set);
@@ -1681,9 +1701,9 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 			boolean disableInternalStyles = mBookInfo.getFileInfo().getFlag(FileInfo.DONT_USE_DOCUMENT_STYLES_FLAG);
 			disableInternalStyles = !disableInternalStyles;
 			mBookInfo.getFileInfo().setFlag(FileInfo.DONT_USE_DOCUMENT_STYLES_FLAG, disableInternalStyles);
-            doEngineCommand(ReaderCommand.DCMD_SET_INTERNAL_STYLES, disableInternalStyles ? 0 : 1);
-            doEngineCommand(ReaderCommand.DCMD_REQUEST_RENDER, 1);
-            mActivity.getDB().saveBookInfo(mBookInfo);
+			doEngineCommand(ReaderCommand.DCMD_SET_INTERNAL_STYLES, disableInternalStyles ? 0 : 1);
+			doEngineCommand(ReaderCommand.DCMD_REQUEST_RENDER, 1);
+			saveBookInfo();
 		}
 	}
 	
@@ -1693,9 +1713,9 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 			boolean enableInternalFonts = mBookInfo.getFileInfo().getFlag(FileInfo.USE_DOCUMENT_FONTS_FLAG);
 			enableInternalFonts = !enableInternalFonts;
 			mBookInfo.getFileInfo().setFlag(FileInfo.USE_DOCUMENT_FONTS_FLAG, enableInternalFonts);
-            doEngineCommand( ReaderCommand.DCMD_SET_DOC_FONTS, enableInternalFonts ? 1 : 0);
-            doEngineCommand( ReaderCommand.DCMD_REQUEST_RENDER, 1);
-            mActivity.getDB().saveBookInfo(mBookInfo);
+			doEngineCommand( ReaderCommand.DCMD_SET_DOC_FONTS, enableInternalFonts ? 1 : 0);
+			doEngineCommand( ReaderCommand.DCMD_REQUEST_RENDER, 1);
+			saveBookInfo();
 		}
 	}
 	
@@ -1731,7 +1751,7 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 			boolean disableTextReflow = mBookInfo.getFileInfo().getFlag(FileInfo.DONT_REFLOW_TXT_FILES_FLAG);
 			disableTextReflow = !disableTextReflow;
 			mBookInfo.getFileInfo().setFlag(FileInfo.DONT_REFLOW_TXT_FILES_FLAG, disableTextReflow);
-			mActivity.getDB().saveBookInfo(mBookInfo);
+			saveBookInfo();
 			reloadDocument();
 		}
 	}
@@ -2962,19 +2982,24 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 			drawPage();
 			return false;
 		}
-		Services.getHistory().getOrCreateBookInfo(mActivity.getDB(), fileInfo, new History.BookInfoLoadedCallack() {
+		mActivity.runInCRDBService(new CRDBService.Runnable() {
 			@Override
-			public void onBookInfoLoaded(final BookInfo bookInfo) {
-				log.v("posting LoadDocument task to background thread");
-				BackgroundThread.instance().postBackground(new Runnable() {
+			public void run(CRDBService.LocalBinder db) {
+				Services.getHistory().getOrCreateBookInfo(db, fileInfo, new History.BookInfoLoadedCallack() {
 					@Override
-					public void run() {
-						log.v("posting LoadDocument task to GUI thread");
-						BackgroundThread.instance().postGUI(new Runnable() {
+					public void onBookInfoLoaded(final BookInfo bookInfo) {
+						log.v("posting LoadDocument task to background thread");
+						BackgroundThread.instance().postBackground(new Runnable() {
 							@Override
 							public void run() {
-								log.v("synced posting LoadDocument task to GUI thread");
-								post(new LoadDocumentTask(bookInfo, errorHandler));
+								log.v("posting LoadDocument task to GUI thread");
+								BackgroundThread.instance().postGUI(new Runnable() {
+									@Override
+									public void run() {
+										log.v("synced posting LoadDocument task to GUI thread");
+										post(new LoadDocumentTask(bookInfo, errorHandler));
+									}
+								});
 							}
 						});
 					}
@@ -4663,7 +4688,7 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 	{
 		drawPage(null, isPartially);
 	}
-	private void drawPage( Runnable doneHandler, boolean isPartially )
+	private void drawPage(Runnable doneHandler, boolean isPartially )
 	{
 		if ( !mInitialized )
 			return;
@@ -4823,12 +4848,7 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 			log.d("LoadDocumentTask, GUI thread is finished successfully");
 			if (Services.getHistory() != null) {
 				Services.getHistory().updateBookAccess(mBookInfo, getTimeElapsed());
-				mActivity.waitForCRDBService(new Runnable() {
-					@Override
-					public void run() {
-						mActivity.getDB().saveBookInfo(mBookInfo);
-					}
-				});
+				saveBookInfo();
 		        if (coverPageBytes!=null && mBookInfo!=null && mBookInfo.getFileInfo()!=null) {
 		        	if (mBookInfo.getFileInfo().format.needCoverPageCaching()) {
 		        		// TODO: fix it
@@ -4865,10 +4885,11 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 			BackgroundThread.ensureGUI();
 			close();
 			log.v("LoadDocumentTask failed for " + mBookInfo, e);
-			mActivity.waitForCRDBService(new Runnable() {
+			final FileInfo fileInfo = new FileInfo(mBookInfo.getFileInfo());
+			mActivity.runInCRDBService(new CRDBService.Runnable() {
 				@Override
-				public void run() {
-					Services.getHistory().removeBookInfo(mActivity.getDB(), mBookInfo.getFileInfo(), true, false );
+				public void run(CRDBService.LocalBinder db) {
+					Services.getHistory().removeBookInfo(db, fileInfo, true, false );
 				}
 			});
 			mBookInfo = null;
@@ -5098,7 +5119,7 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 			    		return;
 			    	final BookInfo bookInfo = mBookInfo;
 			    	if (delayMillis <= 1) {
-						if (bookInfo != null && mActivity.getDB() != null) {
+						if (bookInfo != null) {
 							log.v("saving last position immediately");
 							savePositionBookmark(bmk);
 							Services.getHistory().updateBookAccess(bookInfo, getTimeElapsed());
@@ -5211,15 +5232,21 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 
 	Bookmark lastSavedBookmark = null;
 
-	public void savePositionBookmark(Bookmark bmk) {
+    public void savePositionBookmark(final Bookmark bmk) {
         if (bmk != null && mBookInfo != null && isBookLoaded()) {
-        	//setBookPosition();
-        	if (lastSavedBookmark == null || !lastSavedBookmark.getStartPos().equals(bmk.getStartPos())) {
-	        	Services.getHistory().updateRecentDir();
-	        	mActivity.getDB().saveBookInfo(mBookInfo);
-	        	mActivity.getDB().flush();
-	        	lastSavedBookmark = bmk;
-        	}
+            //setBookPosition();
+            if (lastSavedBookmark == null || !lastSavedBookmark.getStartPos().equals(bmk.getStartPos())) {
+                final BookInfo bookInfo = new BookInfo(mBookInfo);
+                mActivity.runInCRDBService(new CRDBService.Runnable() {
+                    @Override
+                    public void run(CRDBService.LocalBinder db) {
+                        Services.getHistory().updateRecentDir();
+                        db.saveBookInfo(bookInfo);
+                        db.flush();
+                        lastSavedBookmark = bmk;
+                    }
+                });
+            }
         }
     }
 
@@ -5240,9 +5267,16 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
             if ( mBookInfo!=null )
                 mBookInfo.setLastPosition(bmk);
             if ( saveToDB ) {
-            	Services.getHistory().updateRecentDir();
-            	mActivity.getDB().saveBookInfo(mBookInfo);
-            	mActivity.getDB().flush();
+            	final BookInfo bookInfo = new BookInfo(mBookInfo);
+            	// TODO: database completion
+            	mActivity.runInCRDBService(new CRDBService.Runnable() {
+					@Override
+					public void run(CRDBService.LocalBinder db) {
+						Services.getHistory().updateRecentDir();
+						db.saveBookInfo(bookInfo);
+						db.flush();
+					}
+				});
             }
         }
         return bmk;
@@ -5253,13 +5287,19 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
     	mActivity.einkRefresh();
 		BackgroundThread.ensureGUI();
 		if (isBookLoaded() && mBookInfo != null) {
-			log.v("saving last immediately");
-			log.d("bookmark count 1 = " + mBookInfo.getBookmarkCount());
-			Services.getHistory().updateBookAccess(mBookInfo, getTimeElapsed());
-			log.d("bookmark count 2 = " + mBookInfo.getBookmarkCount());
-			mActivity.getDB().saveBookInfo(mBookInfo);
-			log.d("bookmark count 3 = " + mBookInfo.getBookmarkCount());
-			mActivity.getDB().flush();
+			final BookInfo bookInfo = new BookInfo(mBookInfo);
+			mActivity.runInCRDBService(new CRDBService.Runnable() {
+				@Override
+				public void run(CRDBService.LocalBinder db) {
+					log.v("saving last immediately");
+					log.d("bookmark count 1 = " + bookInfo.getBookmarkCount());
+					Services.getHistory().updateBookAccess(bookInfo, getTimeElapsed());
+					log.d("bookmark count 2 = " + bookInfo.getBookmarkCount());
+					db.saveBookInfo(bookInfo);
+					log.d("bookmark count 3 = " + bookInfo.getBookmarkCount());
+					db.flush();
+				}
+			});
 		}
 		//scheduleSaveCurrentPositionBookmark(0);
     	//post( new SavePositionTask() );
@@ -5629,7 +5669,7 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 			return;
 		if (mBookInfo != null && mBookInfo.getFileInfo() != null) {
 			mBookInfo.getFileInfo().setProfileId(profile);
-			mActivity.getDB().saveBookInfo(mBookInfo);
+            saveBookInfo();
 		}
 		log.i("Apply new profile settings");
 		mActivity.setCurrentProfile(profile);
