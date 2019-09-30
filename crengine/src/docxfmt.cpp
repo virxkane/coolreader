@@ -350,7 +350,6 @@ public:
         return defaultValue;
     }
 
-    template<>
     bool getValue(int index, bool defaultValue) const {
         css_length_t property = get(index);
         if(property.type != css_val_unspecified)
@@ -2387,9 +2386,9 @@ docx_rPr *docxStyle::get_rPr(docxImportContext *context)
 }
 
 docxImportContext::docxImportContext(OpcPackage *package, ldomDocument *doc) : m_styles(64), m_abstractNumbers(16),
-    m_Numbers(16), m_footNoteCount(0), m_endNoteCount(0),
-    m_inField(false), m_linkNode(NULL), m_pStyle(NULL),
-    m_package(package), m_doc(doc)
+    m_Numbers(16), m_package(package), m_doc(doc),
+    m_footNoteCount(0), m_endNoteCount(0),
+    m_inField(false), m_linkNode(NULL), m_pStyle(NULL)
 {
 }
 
