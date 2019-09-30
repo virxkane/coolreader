@@ -1,79 +1,12 @@
 #include "../include/fb3fmt.h"
 #include "../include/lvtinydom.h"
 #include "../include/fb2def.h"
+#include "../include/lvopc.h"
 
-const lChar16 * const fb3_BodyContentType = L"application/fb3-body+xml";
-const lChar16 * const fb3_PropertiesContentType = L"application/vnd.openxmlformats-package.core-properties+xml";
-const lChar16 * const fb3_DescriptionContentType = L"application/fb3-description+xml";
-const lChar16 * const fb3_CoverRelationship = L"http://schemas.openxmlformats.org/package/2006/relationships/metadata/thumbnail";
-const lChar16 * const fb3_ImageRelationship = L"http://www.fictionbook.org/FictionBook3/relationships/image";
-
-class OpcPackage;
-class OpcPart;
-typedef LVFastRef<OpcPart> OpcPartRef;
-
-class OpcPart : public LVRefCounter
-{
-public:
-    ~OpcPart();
-    LVStreamRef open();
-    lString16 getRelatedPartName(const lChar16 * const relationType, const lString16 id = lString16());
-    OpcPartRef getRelatedPart(const lChar16 * const relationType, const lString16 id = lString16());
-protected:
-    OpcPart(OpcPackage* package, lString16 name):
-       m_relations(16), m_package(package), m_name(name), m_relationsValid(false)
-    {
-    }
-    void readRelations();
-    lString16 getTargetPath(const lString16 srcPath, const lString16 targetMode, lString16 target);
-    OpcPart* createPart(OpcPackage* package, lString16 name) {
-        return new OpcPart(package, name);
-    }
-private:
-    LVHashTable<lString16, LVHashTable<lString16, lString16> *> m_relations;
-    OpcPackage* m_package;
-    lString16 m_name;
-    bool m_relationsValid;
-private:
-    // non copyable
-    OpcPart();
-    OpcPart( const OpcPart& );
-    OpcPart& operator=( const OpcPart& );
-};
-
-
-class OpcPackage : public OpcPart
-{
-private:
-    bool m_contentTypesValid;
-    LVContainerRef m_container;
-    LVHashTable<lString16, lString16> m_contentTypes;
-private:
-    // non copyable
-    OpcPackage();
-    OpcPackage( const OpcPackage& );
-    OpcPackage& operator=( const OpcPart& );
-public:
-    OpcPackage(LVContainerRef container) : OpcPart(this, L"/"),
-        m_contentTypesValid(false), m_container(container),
-        m_contentTypes(16)
-    {
-    }
-    LVStreamRef open(lString16 partName) {
-        return m_container->OpenStream(partName.c_str(), LVOM_READ);
-    }
-    lString16 getContentPartName(const lChar16* contentType);
-    OpcPartRef getContentPart(const lChar16* contentType) {
-        return getPart(getContentPartName(contentType));
-    }
-    LVStreamRef openContentPart(const lChar16* contentType) {
-        return open(getContentPartName(contentType));
-    }
-    OpcPartRef getPart(const lString16 partName);
-    bool partExist(const lString16 partName);
-private:
-    void readContentTypes();
-};
+static const lChar16 * const fb3_BodyContentType = L"application/fb3-body+xml";
+static const lChar16 * const fb3_DescriptionContentType = L"application/fb3-description+xml";
+static const lChar16 * const fb3_CoverRelationship = L"http://schemas.openxmlformats.org/package/2006/relationships/metadata/thumbnail";
+static const lChar16 * const fb3_ImageRelationship = L"http://www.fictionbook.org/FictionBook3/relationships/image";
 
 class fb3ImportContext
 {
@@ -153,31 +86,13 @@ bool ImportFb3Document( LVStreamRef stream, ldomDocument * doc, LVDocViewCallbac
 
     doc->setContainer(arc);
 
-    CRPropRef doc_props = doc->getProps();
-
-    LVStreamRef propStream = package.openContentPart(fb3_PropertiesContentType);
-
-    if ( !propStream.isNull() ) {
-        ldomDocument * propertiesDoc = LVParseXMLStream( propStream );
-        if ( propertiesDoc ) {
-            lString16 author = propertiesDoc->textFromXPath( cs16("coreProperties/creator") );
-            lString16 title = doc->textFromXPath( cs16("coreProperties/title") );
-            doc_props->setString(DOC_PROP_TITLE, title);
-            doc_props->setString(DOC_PROP_AUTHORS, author );
-            CRLog::info("Author: %s Title: %s", author.c_str(), title.c_str());
-            delete propertiesDoc;
-        } else {
-            CRLog::error("Couldn't parse core properties");
-        }
-    } else {
-        CRLog::error("Couldn't read core properties");
-    }
+    package.readCoreProperties(doc->getProps());
 
     ldomDocument * descDoc = context.getDescription();
 
     if ( descDoc ) {
         lString16 language = descDoc->textFromXPath( cs16("fb3-description/lang") );
-        doc_props->setString(DOC_PROP_LANGUAGE, language);
+        doc->getProps()->setString(DOC_PROP_LANGUAGE, language);
     } else {
         CRLog::error("Couldn't parse description doc");
     }
@@ -325,128 +240,5 @@ void fb3DomWriter::OnAttribute(const lChar16 *nsname, const lChar16 *attrname, c
     }
     if ( pass) {
         m_parent->OnAttribute(nsname, attrname, attrvalue);
-    }
-}
-
-OpcPart::~OpcPart()
-{
-    m_relations.clear();
-}
-
-LVStreamRef OpcPart::open()
-{
-    return m_package->open(m_name);
-}
-
-lString16 OpcPart::getRelatedPartName(const lChar16 * const relationType, const lString16 id)
-{
-    if( !m_relationsValid ) {
-        readRelations();
-        m_relationsValid = true;
-    }
-    LVHashTable<lString16, lString16> *relationsTable = m_relations.get(relationType);
-    if( relationsTable ) {
-        if( id.empty() ) {
-            LVHashTable<lString16, lString16>::iterator it = relationsTable->forwardIterator();
-            LVHashTable<lString16, lString16>::pair *p = it.next();
-            if( p ) {
-                return p->value; // return first value
-            }
-        } else {
-            return relationsTable->get(id);
-        }
-    }
-    return lString16();
-}
-
-OpcPartRef OpcPart::getRelatedPart(const lChar16 * const relationType, const lString16 id)
-{
-    return m_package->getPart( getRelatedPartName(relationType, id) );
-}
-
-void OpcPart::readRelations()
-{
-    lString16 relsPath = LVExtractPath(m_name) + cs16("_rels/") + LVExtractFilename(m_name) + cs16(".rels");
-    LVStreamRef container_stream = m_package->open(relsPath);
-
-    if ( !container_stream.isNull() ) {
-        ldomDocument * doc = LVParseXMLStream( container_stream );
-        lString16 srcPath = LVExtractPath(m_name);
-
-        if ( doc ) {
-            ldomNode *root = doc->nodeFromXPath(cs16("Relationships"));
-            if( root ) {
-                for(int i = 0; i < root->getChildCount(); i++) {
-                    ldomNode * relationshipNode = root->getChildNode((lUInt32)i);
-                    const lString16 relType = relationshipNode->getAttributeValue(L"Type");
-                    LVHashTable<lString16, lString16> *relationsTable = m_relations.get(relType);
-                    if( !relationsTable ) {
-                        relationsTable = new LVHashTable<lString16, lString16>(16);
-                        m_relations.set(relType, relationsTable);
-                    }
-                    const lString16 id = relationshipNode->getAttributeValue(L"Id");
-                    relationsTable->set( id, getTargetPath(srcPath, relationshipNode->getAttributeValue(L"TargetMode"),
-                                                           relationshipNode->getAttributeValue(L"Target")) );
-                }
-            }
-            delete doc;
-        }
-    }
-}
-
-lString16 OpcPart::getTargetPath(const lString16 srcPath, const lString16 targetMode, lString16 target)
-{
-    if( !target.empty() ) {
-        if ( targetMode == L"External" || target.pos(L":") != -1 )
-            return target;
-
-        if( !LVIsAbsolutePath(target) ) {
-            target = LVCombinePaths(srcPath, target);
-        }
-        if( LVIsAbsolutePath(target) ) {
-            return target.substr(1);
-        }
-    }
-    return target;
-}
-
-lString16 OpcPackage::getContentPartName(const lChar16 *contentType)
-{
-    if ( !m_contentTypesValid ) {
-        readContentTypes();
-        m_contentTypesValid = true;
-    }
-    return m_contentTypes.get(contentType);
-}
-
-OpcPartRef OpcPackage::getPart(const lString16 partName)
-{
-    return OpcPartRef(createPart(this, partName));
-}
-
-bool OpcPackage::partExist(const lString16 partName)
-{
-    LVStreamRef partStream = open(partName);
-    return !partStream.isNull();
-}
-
-void OpcPackage::readContentTypes()
-{
-    LVStreamRef mtStream = m_container->OpenStream(L"[Content_Types].xml", LVOM_READ );
-    if ( !mtStream.isNull() ) {
-        ldomDocument * doc = LVParseXMLStream( mtStream );
-        if( doc ) {
-            ldomNode *root = doc->nodeFromXPath(cs16("Types"));
-            if(root) {
-                for(int i = 0; i < root->getChildCount(); i++) {
-                    ldomNode * typeNode = root->getChildNode(i);
-
-                    if(typeNode->getNodeName() == cs16("Override")) //Don't care about Extensions
-                        m_contentTypes.set( typeNode->getAttributeValue(L"ContentType"),
-                                            typeNode->getAttributeValue(L"PartName") );
-                }
-            }
-            delete doc;
-        }
     }
 }
