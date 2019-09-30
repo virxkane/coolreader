@@ -91,6 +91,7 @@
                 <data android:pathPattern=".*\\..*\\..*\\..*\\.fb2\\.epub"/>
                 <data android:pathPattern=".*\\.pdb"/>
                 <data android:pathPattern=".*\\.doc"/>
+                <data android:pathPattern=".*\\.docx"/>
                 <data android:pathPattern=".*\\.prc"/>
                 <data android:pathPattern=".*\\.pml"/>
                 <data android:pathPattern=".*\\.mobi"/>
@@ -137,6 +138,7 @@
                 <data android:mimeType="application/word"/>
                 <data android:mimeType="application/x-msw6"/>
                 <data android:mimeType="application/x-msword"/>
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document"/>
             </intent-filter>
         </activity>
 
