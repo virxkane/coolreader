@@ -266,8 +266,8 @@ public:
     }
     virtual ~LVRtfDefDestination()
     {
-        OnAction( RA_PARA );
-        OnAction( RA_SECTION );
+        OnAction( RA_PARA );    // NOLINT: Call to virtual function during destruction
+        OnAction( RA_SECTION ); // NOLINT
     }
 };
 
@@ -412,7 +412,7 @@ bool LVRtfParser::CheckFormat()
 
 void LVRtfParser::CommitText()
 {
-    if ( txtpos==0 )
+    if ( txtpos==0 || !txtbuf )
         return;
     txtbuf[txtpos] = 0;
 #ifdef LOG_RTF_PARSING
@@ -526,7 +526,7 @@ bool LVRtfParser::Parse()
             // control
             bool asteriskFlag = false;
             if ( ch2=='*' ) {
-                ch = *(++p);
+                ch = *(++p); (void)ch; // not used
                 ch2 = *(++p);
                 asteriskFlag = true;
             }
