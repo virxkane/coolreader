@@ -84,7 +84,7 @@ int gDOMVersionRequested     = DOM_VERSION_CURRENT;
 
 /// change in case of incompatible changes in swap/cache file format to avoid using incompatible swap file
 // increment to force complete reload/reparsing of old file
-#define CACHE_FILE_FORMAT_VERSION "3.12.67"
+#define CACHE_FILE_FORMAT_VERSION "3.12.68"
 
 /// increment following value to force re-formatting of old book after load
 #define FORMATTING_VERSION_ID 0x0025
@@ -7440,7 +7440,7 @@ ldomNode * ldomDocumentWriter::OnTagOpen( const lChar16 * nsname, const lChar16 
     lUInt16 nsid = (nsname && nsname[0]) ? _document->getNsNameIndex(nsname) : 0;
 
     // Set a flag for OnText to accumulate the content of any <HEAD><STYLE>
-    if ( tagname[0] == 's' && !lStr_cmp(tagname, "style") && _currNode && _currNode->getElement()->isNodeName("head") ) {
+    if ( id == el_style && _currNode && _currNode->getElement()->getNodeId() == el_head ) {
         _inHeadStyle = true;
     }
 
@@ -7504,23 +7504,31 @@ ldomDocumentWriter::~ldomDocumentWriter()
 void ldomDocumentWriter::OnTagClose( const lChar16 *, const lChar16 * tagname )
 {
     //logfile << "ldomDocumentWriter::OnTagClose() [" << nsname << ":" << tagname << "]";
-    if (!_currNode)
+    if (!_currNode || !_currNode->getElement())
     {
         _errFlag = true;
         //logfile << " !c-err!\n";
         return;
     }
 
+    //lUInt16 nsid = (nsname && nsname[0]) ? _document->getNsNameIndex(nsname) : 0;
+    lUInt16 curNodeId = _currNode->getElement()->getNodeId();
+    lUInt16 id = _document->getElementNameIndex(tagname);
+    _errFlag |= (id != curNodeId); // (we seem to not do anything with _errFlag)
+    // We should expect the tagname we got to be the same as curNode's element name,
+    // but it looks like we may get an upper closing tag, that pop() below might
+    // handle. So, here below, we check that both id and curNodeId match the
+    // element id we check for.
+
     // Parse <link rel="stylesheet">, put the css file link in _stylesheetLinks.
     // They will be added to <body><stylesheet> when we meet <BODY>
     // (duplicated in ldomDocumentWriterFilter::OnTagClose)
-    if (tagname[0] == 'l' && _currNode && !lStr_cmp(tagname, "link")) {
-        // link node
-        if ( _currNode && _currNode->getElement() && _currNode->getElement()->isNodeName("link") &&
-             _currNode->getElement()->getParentNode() && _currNode->getElement()->getParentNode()->isNodeName("head") &&
-             lString16(_currNode->getElement()->getAttributeValue("rel")).lowercase() == L"stylesheet" &&
-             lString16(_currNode->getElement()->getAttributeValue("type")).lowercase() == L"text/css" ) {
-            lString16 href = _currNode->getElement()->getAttributeValue("href");
+    if ( id == el_link && curNodeId == el_link ) { // link node
+        ldomNode * n = _currNode->getElement();
+        if ( n->getParentNode() && n->getParentNode()->getNodeId() == el_head &&
+                 lString16(n->getAttributeValue("rel")).lowercase() == L"stylesheet" &&
+                 lString16(n->getAttributeValue("type")).lowercase() == L"text/css" ) {
+            lString16 href = n->getAttributeValue("href");
             lString16 stylesheetFile = LVCombinePaths( _document->getCodeBase(), href );
             CRLog::debug("Internal stylesheet file: %s", LCSTR(stylesheetFile));
             // We no more apply it immediately: it will be when <BODY> is met
@@ -7530,23 +7538,8 @@ void ldomDocumentWriter::OnTagClose( const lChar16 *, const lChar16 * tagname )
         }
     }
 
-    /* This is now dealt with in :OnTagBody(), just before creating this <stylesheet> tag
-    bool isStyleSheetTag = !lStr_cmp(tagname, "stylesheet");
-    if ( isStyleSheetTag ) {
-        ldomNode *parentNode = _currNode->getElement()->getParentNode();
-        if (parentNode && parentNode->isNodeName("DocFragment")) {
-            _document->parseStyleSheet(_currNode->getElement()->getAttributeValue(attr_href),
-                                       _currNode->getElement()->getText());
-            isStyleSheetTag = false;
-        }
-    }
-    */
-    bool isStyleSheetTag = tagname[0] == 's' && !lStr_cmp(tagname, "stylesheet");
-
-    lUInt16 id = _document->getElementNameIndex(tagname);
-    //lUInt16 nsid = (nsname && nsname[0]) ? _document->getNsNameIndex(nsname) : 0;
-    _errFlag |= (id != _currNode->getElement()->getNodeId());
     _currNode = pop( _currNode, id );
+        // _currNode is now the parent
 
     if ( _currNode )
         _flags = _currNode->getFlags();
@@ -7571,7 +7564,7 @@ void ldomDocumentWriter::OnTagClose( const lChar16 *, const lChar16 * tagname )
     // Caveat: any style set on the <FictionBook> element itself won't be applied now
     // in this loading phase (as we have already set its style) - but it will apply
     // on re-renderings.
-    if ( isStyleSheetTag && _currNode && _currNode->getElement()->getNodeId() == el_FictionBook ) {
+    if ( id == el_stylesheet && _currNode && _currNode->getElement()->getNodeId() == el_FictionBook ) {
         //CRLog::trace("</stylesheet> found");
 #if BUILD_LITE!=1
         if ( !_popStyleOnFinish && _document->getDocFlag(DOC_FLAG_ENABLE_INTERNAL_STYLES) ) {
@@ -7819,7 +7812,7 @@ private:
 public:
     virtual ~LVBase64NodeStream() { }
     LVBase64NodeStream( ldomNode * element )
-        : m_elem(element), m_curr_node(element), m_size(0), m_pos(0)
+        : m_elem(element), m_curr_node(element), m_text_pos(0), m_size(0), m_pos(0)
     {
         // calculate size
         rewind();
@@ -11237,18 +11230,18 @@ bool ldomXPointerEx::prevVisibleWordStart( bool thisBlockOnly )
             node = getNode();
             text = node->getText();
         }
-        bool foundNonSpace = false;
+        bool foundNonSeparator = false;
         while ( _data->getOffset() > 0 && IsWordSeparator(text[_data->getOffset()-1]) )
             _data->addOffset(-1); // skip preceeding space if any (we were on a visible word start)
         while ( _data->getOffset()>0 ) {
             if ( IsWordSeparator(text[ _data->getOffset()-1 ]) )
                 break;
-            foundNonSpace = true;
+            foundNonSeparator = true;
             _data->addOffset(-1);
             if ( canWrapWordBefore( text[_data->getOffset()] ) ) // CJK char
                 break;
         }
-        if ( foundNonSpace )
+        if ( foundNonSeparator )
             return true;
     }
 }
@@ -11275,14 +11268,14 @@ bool ldomXPointerEx::prevVisibleWordEnd( bool thisBlockOnly )
             node = getNode();
             text = node->getText();
         }
-        // skip spaces
+        // skip separators
         while ( _data->getOffset() > 0 && IsWordSeparator(text[_data->getOffset()-1]) ) {
             _data->addOffset(-1);
             moved = true;
         }
         if ( moved && _data->getOffset()>0 )
             return true; // found!
-        // skip non-spaces
+        // skip non-separators
         while ( _data->getOffset()>0 ) {
             if ( IsWordSeparator(text[ _data->getOffset()-1 ]) )
                 break;
@@ -11291,7 +11284,7 @@ bool ldomXPointerEx::prevVisibleWordEnd( bool thisBlockOnly )
             moved = true;
             _data->addOffset(-1);
         }
-        // skip spaces
+        // skip separators
         while ( _data->getOffset() > 0 && IsWordSeparator(text[_data->getOffset()-1]) ) {
             _data->addOffset(-1);
             moved = true;
@@ -11333,14 +11326,14 @@ bool ldomXPointerEx::nextVisibleWordStart( bool thisBlockOnly )
                 moved = true;
             }
         }
-        // skip spaces
+        // skip separators
         while ( _data->getOffset()<textLen && IsWordSeparator(text[ _data->getOffset() ]) ) {
             _data->addOffset(1);
             moved = true;
         }
         if ( moved && _data->getOffset()<textLen )
             return true;
-        // skip non-spaces
+        // skip non-separators
         while ( _data->getOffset()<textLen ) {
             if ( IsWordSeparator(text[ _data->getOffset() ]) )
                 break;
@@ -11349,7 +11342,7 @@ bool ldomXPointerEx::nextVisibleWordStart( bool thisBlockOnly )
             moved = true;
             _data->addOffset(1);
         }
-        // skip spaces
+        // skip separators
         while ( _data->getOffset()<textLen && IsWordSeparator(text[ _data->getOffset() ]) ) {
             _data->addOffset(1);
             moved = true;
@@ -11376,12 +11369,12 @@ bool ldomXPointerEx::thisVisibleWordEnd(bool thisBlockOnly)
     textLen = text.length();
     if ( _data->getOffset() >= textLen )
         return false;
-    // skip spaces
+    // skip separators
     while ( _data->getOffset()<textLen && IsWordSeparator(text[ _data->getOffset() ]) ) {
         _data->addOffset(1);
         //moved = true;
     }
-    // skip non-spaces
+    // skip non-separators
     while ( _data->getOffset()<textLen ) {
         if ( IsWordSeparator(text[ _data->getOffset() ]) )
             break;
@@ -11422,10 +11415,166 @@ bool ldomXPointerEx::nextVisibleWordEnd( bool thisBlockOnly )
                 _data->setOffset( 0 );
             }
         }
+        bool nonSeparatorFound = false;
+        // skip non-separators
+        while ( _data->getOffset()<textLen ) {
+            if ( IsWordSeparator(text[ _data->getOffset() ]) )
+                break;
+            nonSeparatorFound = true;
+            _data->addOffset(1);
+            if ( canWrapWordAfter( text[_data->getOffset()] ) ) // We moved to a CJK char
+                return true;
+        }
+        if ( nonSeparatorFound )
+            return true;
+        // skip separators
+        while ( _data->getOffset()<textLen && IsWordSeparator(text[ _data->getOffset() ]) ) {
+            _data->addOffset(1);
+            //moved = true;
+        }
+        // skip non-separators
+        while ( _data->getOffset()<textLen ) {
+            if ( IsWordSeparator(text[ _data->getOffset() ]) )
+                break;
+            nonSeparatorFound = true;
+            _data->addOffset(1);
+            if ( canWrapWordAfter( text[_data->getOffset()] ) ) // We moved to a CJK char
+                return true;
+        }
+        if ( nonSeparatorFound )
+            return true;
+    }
+}
+
+/// move to previous visible word beginning (in sentence)
+bool ldomXPointerEx::prevVisibleWordStartInSentence()
+{
+    if ( isNull() )
+        return false;
+    ldomNode * node = NULL;
+    lString16 text;
+    for ( ;; ) {
+        if ( !isText() || !isVisible() || _data->getOffset()==0 ) {
+            // move to previous text
+            if ( !prevVisibleText(true) )
+                return false;
+            node = getNode();
+            text = node->getText();
+            int textLen = text.length();
+            _data->setOffset( textLen );
+        } else {
+            node = getNode();
+            text = node->getText();
+        }
+        bool foundNonSpace = false;
+        while ( _data->getOffset() > 0 && IsUnicodeSpace(text[_data->getOffset()-1]) )
+            _data->addOffset(-1); // skip preceeding space if any (we were on a visible word start)
+        while ( _data->getOffset()>0 ) {
+            if ( IsUnicodeSpace(text[ _data->getOffset()-1 ]) )
+                break;
+            foundNonSpace = true;
+            _data->addOffset(-1);
+            if ( canWrapWordBefore( text[_data->getOffset()] ) ) // CJK char
+                break;
+        }
+        if ( foundNonSpace )
+            return true;
+    }
+}
+
+/// move to next visible word beginning (in sentence)
+bool ldomXPointerEx::nextVisibleWordStartInSentence()
+{
+    if ( isNull() )
+        return false;
+    ldomNode * node = NULL;
+    lString16 text;
+    int textLen = 0;
+    bool moved = false;
+    for ( ;; ) {
+        if ( !isText() || !isVisible() ) {
+            // move to previous text
+            if ( !nextVisibleText(false) )
+                return false;
+            node = getNode();
+            text = node->getText();
+            textLen = text.length();
+            _data->setOffset( 0 );
+            moved = true;
+        } else {
+            for (;;) {
+                node = getNode();
+                text = node->getText();
+                textLen = text.length();
+                if ( _data->getOffset() < textLen )
+                    break;
+                if ( !nextVisibleText(false) )
+                    return false;
+                _data->setOffset( 0 );
+                moved = true;
+            }
+        }
+        // skip spaces
+        while ( _data->getOffset()<textLen && IsUnicodeSpace(text[ _data->getOffset() ]) ) {
+            _data->addOffset(1);
+            moved = true;
+        }
+        if ( moved && _data->getOffset()<textLen )
+            return true;
+        // skip non-spaces
+        while ( _data->getOffset()<textLen ) {
+            if ( IsUnicodeSpace(text[ _data->getOffset() ]) )
+                break;
+            if ( moved && canWrapWordBefore( text[_data->getOffset()] ) ) // We moved to a CJK char
+                return true;
+            moved = true;
+            _data->addOffset(1);
+        }
+        // skip spaces
+        while ( _data->getOffset()<textLen && IsUnicodeSpace(text[ _data->getOffset() ]) ) {
+            _data->addOffset(1);
+            moved = true;
+        }
+        if ( moved && _data->getOffset()<textLen )
+            return true;
+    }
+}
+
+/// move to next visible word end (in sentence)
+bool ldomXPointerEx::nextVisibleWordEndInSentence()
+{
+    if ( isNull() )
+        return false;
+    ldomNode * node = NULL;
+    lString16 text;
+    int textLen = 0;
+    //bool moved = false;
+    for ( ;; ) {
+        if ( !isText() || !isVisible() ) {
+            // move to previous text
+            if ( !nextVisibleText(true) )
+                return false;
+            node = getNode();
+            text = node->getText();
+            textLen = text.length();
+            _data->setOffset( 0 );
+            //moved = true;
+        } else {
+            for (;;) {
+                node = getNode();
+                text = node->getText();
+                textLen = text.length();
+                if ( _data->getOffset() < textLen )
+                    break;
+                if ( !nextVisibleText(true) )
+                    return false;
+                _data->setOffset( 0 );
+            }
+        }
         bool nonSpaceFound = false;
         // skip non-spaces
         while ( _data->getOffset()<textLen ) {
-            if ( IsWordSeparator(text[ _data->getOffset() ]) )
+            if ( IsUnicodeSpace(text[ _data->getOffset() ]) )
                 break;
             nonSpaceFound = true;
             _data->addOffset(1);
@@ -11435,13 +11584,13 @@ bool ldomXPointerEx::nextVisibleWordEnd( bool thisBlockOnly )
         if ( nonSpaceFound )
             return true;
         // skip spaces
-        while ( _data->getOffset()<textLen && IsWordSeparator(text[ _data->getOffset() ]) ) {
+        while ( _data->getOffset()<textLen && IsUnicodeSpace(text[ _data->getOffset() ]) ) {
             _data->addOffset(1);
             //moved = true;
         }
         // skip non-spaces
         while ( _data->getOffset()<textLen ) {
-            if ( IsWordSeparator(text[ _data->getOffset() ]) )
+            if ( IsUnicodeSpace(text[ _data->getOffset() ]) )
                 break;
             nonSpaceFound = true;
             _data->addOffset(1);
@@ -11450,6 +11599,54 @@ bool ldomXPointerEx::nextVisibleWordEnd( bool thisBlockOnly )
         }
         if ( nonSpaceFound )
             return true;
+    }
+}
+
+/// move to previous visible word end (in sentence)
+bool ldomXPointerEx::prevVisibleWordEndInSentence()
+{
+    if ( isNull() )
+        return false;
+    ldomNode * node = NULL;
+    lString16 text;
+    bool moved = false;
+    for ( ;; ) {
+        if ( !isText() || !isVisible() || _data->getOffset()==0 ) {
+            // move to previous text
+            if ( !prevVisibleText(false) )
+                return false;
+            node = getNode();
+            text = node->getText();
+            int textLen = text.length();
+            _data->setOffset( textLen );
+            moved = true;
+        } else {
+            node = getNode();
+            text = node->getText();
+        }
+        // skip spaces
+        while ( _data->getOffset() > 0 && IsUnicodeSpace(text[_data->getOffset()-1]) ) {
+            _data->addOffset(-1);
+            moved = true;
+        }
+        if ( moved && _data->getOffset()>0 )
+            return true; // found!
+        // skip non-spaces
+        while ( _data->getOffset()>0 ) {
+            if ( IsUnicodeSpace(text[ _data->getOffset()-1 ]) )
+                break;
+            if ( moved && canWrapWordAfter( text[_data->getOffset()] ) ) // We moved to a CJK char
+                return true;
+            moved = true;
+            _data->addOffset(-1);
+        }
+        // skip spaces
+        while ( _data->getOffset() > 0 && IsUnicodeSpace(text[_data->getOffset()-1]) ) {
+            _data->addOffset(-1);
+            moved = true;
+        }
+        if ( moved && _data->getOffset()>0 )
+            return true; // found!
     }
 }
 
@@ -11663,7 +11860,7 @@ bool ldomXPointerEx::thisSentenceStart()
     for (;;) {
         if ( isSentenceStart() )
             return true;
-        if ( !prevVisibleWordStart(true) )
+        if ( !prevVisibleWordStartInSentence() )
             return false;
     }
 }
@@ -11678,7 +11875,7 @@ bool ldomXPointerEx::thisSentenceEnd()
     for (;;) {
         if ( isSentenceEnd() )
             return true;
-        if ( !nextVisibleWordEnd(true) )
+        if ( !nextVisibleWordEndInSentence() )
             return false;
     }
 }
@@ -11689,7 +11886,7 @@ bool ldomXPointerEx::nextSentenceStart()
     if ( !isSentenceStart() && !thisSentenceEnd() )
         return false;
     for (;;) {
-        if ( !nextVisibleWordStart() )
+        if ( !nextVisibleWordStartInSentence() )
             return false;
         if ( isSentenceStart() )
             return true;
@@ -11723,7 +11920,7 @@ bool ldomXPointerEx::prevSentenceEnd()
     if ( !thisSentenceStart() )
         return false;
     for (;;) {
-        if ( !prevVisibleWordEnd() )
+        if ( !prevVisibleWordEndInSentence() )
             return false;
         if ( isSentenceEnd() )
             return true;
@@ -12709,8 +12906,11 @@ ldomNode * ldomDocumentWriterFilter::OnTagOpen( const lChar16 * nsname, const lC
 //        lStr_lowercase( const_cast<lChar16 *>(nsname), lStr_len(nsname) );
 //    lStr_lowercase( const_cast<lChar16 *>(tagname), lStr_len(tagname) );
 
+    lUInt16 id = _document->getElementNameIndex(tagname);
+    lUInt16 nsid = (nsname && nsname[0]) ? _document->getNsNameIndex(nsname) : 0;
+
     // Set a flag for OnText to accumulate the content of any <HEAD><STYLE>
-    if ( tagname[0] == 's' && !lStr_cmp(tagname, "style") && _currNode && _currNode->getElement()->isNodeName("head") ) {
+    if ( id == el_style && _currNode && _currNode->getElement()->getNodeId() == el_head ) {
         _inHeadStyle = true;
     }
 
@@ -12719,18 +12919,15 @@ ldomNode * ldomDocumentWriterFilter::OnTagOpen( const lChar16 * nsname, const lC
     // requested to keep previously recorded XPATHs valid.
     if ( _libRuDocumentDetected || gDOMVersionRequested < 20180503) {
         // Patch for bad LIB.RU books - BR delimited paragraphs in "Fine HTML" format
-        if ((tagname[0] == 'b' && tagname[1] == 'r' && tagname[2] == 0)
-            || (tagname[0] == 'd' && tagname[1] == 'd' && tagname[2] == 0)) {
+        if ( id == el_br || id == el_dd ) {
             // substitute to P
-            tagname = L"p";
+            id = el_p;
             _libRuParagraphStart = true; // to trim leading &nbsp;
         } else {
             _libRuParagraphStart = false;
         }
     }
 
-    lUInt16 id = _document->getElementNameIndex(tagname);
-    lUInt16 nsid = (nsname && nsname[0]) ? _document->getNsNameIndex(nsname) : 0;
     AutoClose( id, true );
     _currNode = new ldomElementWriter( _document, nsid, id, _currNode );
     _flags = _currNode->getFlags();
@@ -12915,23 +13112,31 @@ void ldomDocumentWriterFilter::OnTagClose( const lChar16 * /*nsname*/, const lCh
 //    if ( nsname && nsname[0] )
 //        lStr_lowercase( const_cast<lChar16 *>(nsname), lStr_len(nsname) );
 //    lStr_lowercase( const_cast<lChar16 *>(tagname), lStr_len(tagname) );
-    if (!_currNode)
+    if (!_currNode || !_currNode->getElement())
     {
         _errFlag = true;
         //logfile << " !c-err!\n";
         return;
     }
 
+    //lUInt16 nsid = (nsname && nsname[0]) ? _document->getNsNameIndex(nsname) : 0;
+    lUInt16 curNodeId = _currNode->getElement()->getNodeId();
+    lUInt16 id = _document->getElementNameIndex(tagname);
+    _errFlag |= (id != curNodeId); // (we seem to not do anything with _errFlag)
+    // We should expect the tagname we got to be the same as curNode's element name,
+    // but it looks like we may get an upper closing tag, that pop() or AutoClose()
+    // below might handle. So, here below, we check that both id and curNodeId match
+    // the element id we check for.
+
     // Parse <link rel="stylesheet">, put the css file link in _stylesheetLinks,
     // they will be added to <body><stylesheet> when we meet <BODY>
     // (duplicated in ldomDocumentWriter::OnTagClose)
-    if (tagname[0] == 'l' && _currNode && !lStr_cmp(tagname, "link")) {
-        // link node
-        if ( _currNode && _currNode->getElement() && _currNode->getElement()->isNodeName("link") &&
-             _currNode->getElement()->getParentNode() && _currNode->getElement()->getParentNode()->isNodeName("head") &&
-             lString16(_currNode->getElement()->getAttributeValue("rel")).lowercase() == L"stylesheet" &&
-             lString16(_currNode->getElement()->getAttributeValue("type")).lowercase() == L"text/css" ) {
-            lString16 href = _currNode->getElement()->getAttributeValue("href");
+    if ( id == el_link && curNodeId == el_link ) { // link node
+        ldomNode * n = _currNode->getElement();
+        if ( n->getParentNode() && n->getParentNode()->getNodeId() == el_head &&
+                 lString16(n->getAttributeValue("rel")).lowercase() == L"stylesheet" &&
+                 lString16(n->getAttributeValue("type")).lowercase() == L"text/css" ) {
+            lString16 href = n->getAttributeValue("href");
             lString16 stylesheetFile = LVCombinePaths( _document->getCodeBase(), href );
             CRLog::debug("Internal stylesheet file: %s", LCSTR(stylesheetFile));
             // We no more apply it immediately: it will be when <BODY> is met
@@ -12941,11 +13146,9 @@ void ldomDocumentWriterFilter::OnTagClose( const lChar16 * /*nsname*/, const lCh
         }
     }
 
-    lUInt16 id = _document->getElementNameIndex(tagname);
-
     // HTML title detection
-    if ( id==el_title && _currNode && _currNode->_element && _currNode->_element->getParentNode() != NULL
-                                   && _currNode->_element->getParentNode()->getNodeId() == el_head ) {
+    if ( id == el_title && curNodeId == el_title && _currNode->_element->getParentNode() &&
+                           _currNode->_element->getParentNode()->getNodeId() == el_head ) {
         lString16 s = _currNode->_element->getText();
         s.trim();
         if ( !s.empty() ) {
@@ -12954,15 +13157,13 @@ void ldomDocumentWriterFilter::OnTagClose( const lChar16 * /*nsname*/, const lCh
         }
     }
     //======== START FILTER CODE ============
-    if ( _currNode->_element ) // (should always be true, but avoid clang warning)
-        AutoClose( _currNode->_element->getNodeId(), false );
+    AutoClose( curNodeId, false );
     //======== END FILTER CODE ==============
-    //lUInt16 nsid = (nsname && nsname[0]) ? _document->getNsNameIndex(nsname) : 0;
     // save closed element
-    ldomNode * closedElement = _currNode->getElement();
-    _errFlag |= (!closedElement || id != closedElement->getNodeId());
-    _currNode = pop( _currNode, id );
+    // ldomNode * closedElement = _currNode->getElement();
 
+    _currNode = pop( _currNode, id );
+        // _currNode is now the parent
 
     if ( _currNode ) {
         _flags = _currNode->getFlags();
