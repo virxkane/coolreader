@@ -129,7 +129,7 @@ public class Synchronizer {
 			"styles."
 	};
 
-	private static final String REMOTE_FOLDER_PATH = "/.cr3";
+	private static final String REMOTE_FOLDER_PATH = "/.cr3_mod.virxkane";
 	private static final String REMOTE_SETTINGS_FILE_PATH = REMOTE_FOLDER_PATH + "/cr3.ini.gz";
 
 	private static final int BOOKMARKS_BUNDLE_VERSION = 3;
