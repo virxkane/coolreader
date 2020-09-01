@@ -355,7 +355,7 @@ public class CoolReader extends BaseActivity {
 				public void onAborted(Synchronizer.SyncDirection direction) {
 					// Hide sync indicator
 					runInReader(() -> mReaderView.hideSyncProgress());
-					BackgroundThread.instance().executeGUI(() -> showToast(R.string.googledrive_sync_aborted));
+					showToast(R.string.googledrive_sync_aborted);
 				}
 
 				@Override
@@ -389,7 +389,7 @@ public class CoolReader extends BaseActivity {
 				}
 
 				@Override
-				public void onCurrentBookLoaded(FileInfo fileInfo) {
+				public void onCurrentBookInfoLoaded(FileInfo fileInfo) {
 					loadDocument(fileInfo, false);
 				}
 
@@ -1108,7 +1108,7 @@ public class CoolReader extends BaseActivity {
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
 				// Save last opened document on cloud
 				if (mSyncGoogleDriveEnabled && mSyncGoogleDriveEnabledCurrentBooks && null != mGoogleDriveSync && !mGoogleDriveSync.isBusy())
-					mGoogleDriveSync.startSyncTo(true, false, false);
+					mGoogleDriveSync.startSyncToOnly(Synchronizer.SyncTarget.CURRENTBOOKINFO, false);
 			}
 		} : doneCallback, errorCallback));
 	}

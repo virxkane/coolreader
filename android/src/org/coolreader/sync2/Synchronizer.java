@@ -1054,6 +1054,9 @@ public class Synchronizer {
 	public void startSyncToOnly(SyncTarget target, boolean quietly) {
 		if (m_isBusy)
 			return;
+		// check target
+		if (!hasTarget(target))
+			return;
 		// make "Sync To" operations chain and run it
 		m_askAbort = false;
 		setSyncStarted(SyncDirection.SyncTo);
@@ -1066,21 +1069,17 @@ public class Synchronizer {
 		addOperation(new CheckAppFolderSyncOperation());
 		switch (target) {
 			case SETTINGS:
-				if (hasTarget(SyncTarget.SETTINGS)) {
-					if (quietly) {
-						addOperation(new UploadSettingsSyncOperation(m_coolReader.getSettingsFile(0), REMOTE_SETTINGS_FILE_PATH));
-					} else {
-						addOperation(new CheckUploadSettingsSyncOperation(m_coolReader.getSettingsFile(0), REMOTE_SETTINGS_FILE_PATH));
-					}
+				if (quietly) {
+					addOperation(new UploadSettingsSyncOperation(m_coolReader.getSettingsFile(0), REMOTE_SETTINGS_FILE_PATH));
+				} else {
+					addOperation(new CheckUploadSettingsSyncOperation(m_coolReader.getSettingsFile(0), REMOTE_SETTINGS_FILE_PATH));
 				}
 				break;
 			case BOOKMARKS:
-				if (hasTarget(SyncTarget.BOOKMARKS))
-					addOperation(new UploadBookmarksSyncOperation());
+				addOperation(new UploadBookmarksSyncOperation());
 				break;
 			case CURRENTBOOKINFO:
-				if (hasTarget(SyncTarget.CURRENTBOOKINFO))
-					addOperation(new UploadCurrentBookInfoSyncOperation());
+				addOperation(new UploadCurrentBookInfoSyncOperation());
 				break;
 		}
 		addOperation(m_doneOp);
@@ -1221,7 +1220,7 @@ public class Synchronizer {
 	}
 
 	private void syncBookmarks(InputStream inputStream) {
-		log.v("syncCurrentBookWithReaderView()");
+		log.v("syncBookmarks()");
 		// 1. Read & parse bookmarks from stream
 		FileInfo fileInfo = null;
 		List<Bookmark> bookmarks = null;
@@ -1280,6 +1279,7 @@ public class Synchronizer {
 	}
 
 	private void syncSetCurrentBook(FileInfo fileInfo) {
+		log.v("syncSetCurrentBook()");
 		BackgroundThread.instance().executeGUI(() -> m_coolReader.waitForCRDBService(() -> {
 			//m_coolReader.getDB().findByFingerprint(2, fileName, crc32,
 			m_coolReader.getDB().findByPatterns(2, fileInfo.authors, fileInfo.title, fileInfo.series, fileInfo.filename,
@@ -1298,7 +1298,7 @@ public class Synchronizer {
 							FileInfo dbFileInfo = fileList.get(0);
 							if (null != m_onStatusListener) {
 								log.d("Book \"" + dbFileInfo + "\" found, call listener to load this book...");
-								m_onStatusListener.onCurrentBookLoaded(fileList.get(0));
+								m_onStatusListener.onCurrentBookInfoLoaded(fileList.get(0));
 							}
 						}
 					});
