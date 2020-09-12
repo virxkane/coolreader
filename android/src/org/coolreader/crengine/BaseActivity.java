@@ -43,9 +43,11 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
@@ -1271,12 +1273,44 @@ public class BaseActivity extends Activity implements Settings {
 	}
 
 	public void askConfirmation(int questionResourceId, final Runnable action, final Runnable cancelAction) {
+		String question = getString(questionResourceId);
+		askConfirmation(null, question, action, cancelAction);
+	}
+
+	public void askConfirmation(int titleResourceId, int questionResourceId, final Runnable action, final Runnable cancelAction) {
+		String title = getString(titleResourceId);
+		String question = getString(questionResourceId);
+		askConfirmation(title, question, action, cancelAction);
+	}
+
+	public void askQuestion(int titleResourceId, int questionResourceId, final Runnable yesAction, final Runnable noAction) {
+		String title = getString(titleResourceId);
+		String question = getString(questionResourceId);
+		askQuestion(title, question, yesAction, noAction);
+	}
+
+	public void askConfirmation(String title, String question, final Runnable action, final Runnable cancelAction) {
 		AlertDialog.Builder dlg = new AlertDialog.Builder(this);
-		dlg.setMessage(questionResourceId);
+		if (null != title)
+			dlg.setTitle(title);
+		dlg.setMessage(question);
 		dlg.setPositiveButton(R.string.dlg_button_ok, (arg0, arg1) -> action.run());
 		dlg.setNegativeButton(R.string.dlg_button_cancel, (arg0, arg1) -> {
 			if (cancelAction != null)
 				cancelAction.run();
+		});
+		dlg.show();
+	}
+
+	public void askQuestion(String title, String question, final Runnable yesAction, final Runnable noAction) {
+		AlertDialog.Builder dlg = new AlertDialog.Builder(this);
+		if (null != title)
+			dlg.setTitle(title);
+		dlg.setMessage(question);
+		dlg.setPositiveButton(R.string.dlg_button_yes, (arg0, arg1) -> yesAction.run());
+		dlg.setNegativeButton(R.string.dlg_button_no, (arg0, arg1) -> {
+			if (noAction != null)
+				noAction.run();
 		});
 		dlg.show();
 	}
@@ -1591,11 +1625,39 @@ public class BaseActivity extends Activity implements Settings {
 			return changed;
 		}
 
+		private boolean applyDefaultFallbackFontList(Properties props, String propName, String defFontList) {
+			String currentValue = props.getProperty(propName);
+			boolean changed = false;
+			if (currentValue == null) {
+				currentValue = defFontList;
+				changed = true;
+			}
+			List<String> faces = Arrays.asList(currentValue.split(";"));
+			StringBuilder allowedFaces = new StringBuilder();
+			Iterator<String> it = faces.iterator();
+			while (it.hasNext()) {
+				String face = it.next().trim();
+				if (isValidFontFace(face)) {
+					allowedFaces.append(face);
+					if (it.hasNext())
+						allowedFaces.append("; ");
+				}
+			}
+			if (!changed)
+				changed = !allowedFaces.toString().equals(currentValue);
+			if (changed) {
+				currentValue = allowedFaces.toString();
+				props.setProperty(propName, currentValue);
+			}
+			return changed;
+		}
+
 		public boolean fixFontSettings(Properties props) {
 			boolean res = false;
 			res = applyDefaultFont(props, ReaderView.PROP_FONT_FACE, DeviceInfo.DEF_FONT_FACE) || res;
 			res = applyDefaultFont(props, ReaderView.PROP_STATUS_FONT_FACE, DeviceInfo.DEF_FONT_FACE) || res;
 			res = applyDefaultFont(props, ReaderView.PROP_FALLBACK_FONT_FACE, "Droid Sans Fallback") || res;
+			res = applyDefaultFallbackFontList(props, ReaderView.PROP_FALLBACK_FONT_FACES, "Droid Sans Fallback; Noto Sans CJK SC; Noto Sans Arabic UI; Noto Sans Devanagari UI; Roboto; FreeSans; FreeSerif; Noto Serif; Noto Sans; Arial Unicode MS") || res;
 			return res;
 		}
 
@@ -1796,6 +1858,12 @@ public class BaseActivity extends Activity implements Settings {
 			props.applyDefault(ReaderView.PROP_TOOLBAR_LOCATION, Settings.VIEWER_TOOLBAR_NONE);
 			props.applyDefault(ReaderView.PROP_TOOLBAR_HIDE_IN_FULLSCREEN, "0");
 
+			props.applyDefault(ReaderView.PROP_APP_CLOUDSYNC_GOOGLEDRIVE_ENABLED, "0");
+			props.applyDefault(ReaderView.PROP_APP_CLOUDSYNC_GOOGLEDRIVE_SETTINGS, "0");
+			props.applyDefault(ReaderView.PROP_APP_CLOUDSYNC_GOOGLEDRIVE_BOOKMARKS, "0");
+			props.applyDefault(ReaderView.PROP_APP_CLOUDSYNC_GOOGLEDRIVE_CURRENTBOOK, "0");
+			props.applyDefault(ReaderView.PROP_APP_CLOUDSYNC_GOOGLEDRIVE_AUTOSAVEPERIOD, "5");		// 5 min.
+			props.applyDefault(ReaderView.PROP_APP_CLOUDSYNC_CONFIRMATIONS, "1");
 
 			if (!DeviceInfo.EINK_SCREEN) {
 				props.applyDefault(ReaderView.PROP_APP_HIGHLIGHT_BOOKMARKS, "1");

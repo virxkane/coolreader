@@ -51,6 +51,8 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Stop TTS on incoming call -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <!-- foreground TTS control service, for API >= 28 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <!-- Hide Android3 soft buttons on Archos -->
     <!--uses-permission android:name="archos.permission.FULLSCREEN.FULL"/-->
     <!-- Required permission to use in-app billing. -->
@@ -127,6 +129,10 @@
                 <data android:pathPattern=".*\\.pdb"/>
                 <data android:pathPattern=".*\\.doc"/>
                 <data android:pathPattern=".*\\.docx"/>
+                <data android:pathPattern=".*\\.odt"/>
+                <data android:pathPattern=".*\\..*\\.odt"/>
+                <data android:pathPattern=".*\\..*\\..*\\.odt"/>
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.odt"/>
                 <data android:pathPattern=".*\\.prc"/>
                 <data android:pathPattern=".*\\.pml"/>
                 <data android:pathPattern=".*\\.mobi"/>
@@ -174,23 +180,23 @@
                 <data android:mimeType="application/x-msw6"/>
                 <data android:mimeType="application/x-msword"/>
                 <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document"/>
+                <data android:mimeType="application/vnd.oasis.opendocument.text"/>
             </intent-filter>
         </activity>
 
-
         <!-- Database service -->
-        <service android:name=".db.CRDBService" />
+        <service
+                android:name=".db.CRDBService"
+                android:enabled="true"
+                android:exported="false" />
 
-        <!-- Donations support -->
-        <service android:name=".donations.BillingService" />
+        <!-- TTS control service -->
+        <service
+                android:name=".tts.TTSControlService"
+                android:enabled="true"
+                android:exported="false"
+                android:foregroundServiceType="mediaPlayback" />
 
-        <receiver android:name="org.coolreader.donations.BillingReceiver">
-            <intent-filter>
-                <action android:name="com.android.vending.billing.IN_APP_NOTIFY" />
-                <action android:name="com.android.vending.billing.RESPONSE_CODE" />
-                <action android:name="com.android.vending.billing.PURCHASE_STATE_CHANGED" />
-            </intent-filter>
-        </receiver>
         <!-- Stop TTS on incoming call -->
         <receiver android:name="org.coolreader.PhoneStateReceiver">
             <intent-filter>
