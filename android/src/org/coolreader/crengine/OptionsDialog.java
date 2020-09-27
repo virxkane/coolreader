@@ -205,12 +205,22 @@ public class OptionsDialog extends BaseDialog implements TabContentFactory, Opti
 		};
 	int[] mAnimation = new int[] {
 			ReaderView.PAGE_ANIMATION_NONE, ReaderView.PAGE_ANIMATION_SLIDE, ReaderView.PAGE_ANIMATION_SLIDE2, 
-			ReaderView.PAGE_ANIMATION_PAPER
+			ReaderView.PAGE_ANIMATION_PAPER, ReaderView.PAGE_ANIMATION_BLUR, ReaderView.PAGE_ANIMATION_DIM,
+			ReaderView.PAGE_ANIMATION_BLUR_DIM, ReaderView.PAGE_ANIMATION_MAG, ReaderView.PAGE_ANIMATION_MAG_DIM
 		};
 	int[] mAnimationTitles = new int[] {
 			R.string.options_page_animation_none, R.string.options_page_animation_slide, R.string.options_page_animation_slide_2_pages,
-			R.string.options_page_animation_paperbook
+			R.string.options_page_animation_paperbook,
+			R.string.options_page_animation_blur, R.string.options_page_animation_dim,
+			R.string.options_page_animation_blur_dim, R.string.options_page_animation_mag, R.string.options_page_animation_mag_dim
 		};
+	int[] mPageAnimationSpeed = new int[] {
+			100, 200, 300, 500, 800
+	};
+	int[] mPageAnimationSpeedTitles = new int[] {
+			R.string.page_animation_speed_1, R.string.page_animation_speed_2, R.string.page_animation_speed_3,
+			R.string.page_animation_speed_4, R.string.page_animation_speed_5
+	};
 	int[] mHighlightMode = new int[] {
 			0, 1, 2
 		};
@@ -2060,8 +2070,11 @@ public class OptionsDialog extends BaseDialog implements TabContentFactory, Opti
 		int value = mProperties.getInt(PROP_PAGE_VIEW_MODE, 1);
 		mFootNotesOption.enabled = value == 1;
 		mOptionsPage.add(mFootNotesOption);
-		if ( !DeviceInfo.EINK_SCREEN )
+		if ( !DeviceInfo.EINK_SCREEN ) {
+			mOptionsPage.add(new ListOption(this, getString(R.string.page_animation_speed), PROP_PAGE_ANIMATION_SPEED).
+					add(mPageAnimationSpeed, mPageAnimationSpeedTitles).setDefaultValue("300").noIcon());
 			mOptionsPage.add(new ListOption(this, getString(R.string.options_page_animation), PROP_PAGE_ANIMATION).add(mAnimation, mAnimationTitles).setDefaultValue("1").noIcon());
+		}
 		mOptionsPage.add(new ListOption(this, getString(R.string.options_view_bookmarks_highlight), PROP_APP_HIGHLIGHT_BOOKMARKS).add(mHighlightMode, mHighlightModeTitles).setDefaultValue("1").noIcon());
 		if ( !DeviceInfo.EINK_SCREEN ) {
 			mOptionsPage.add(new ColorOption(this, getString(R.string.options_view_color_selection), PROP_HIGHLIGHT_SELECTION_COLOR, 0xCCCCCC).noIcon());
