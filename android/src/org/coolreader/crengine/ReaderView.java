@@ -13,6 +13,7 @@ import java.util.concurrent.Callable;
 import org.coolreader.CoolReader;
 import org.coolreader.R;
 import org.coolreader.crengine.InputDialog.InputHandler;
+import org.coolreader.graphics.FastBlur;
 import org.koekak.android.ebookdownloader.SonyBookSelector;
 
 import android.content.ContentValues;
@@ -246,7 +247,12 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 	public static final int PAGE_ANIMATION_PAPER = 1;
 	public static final int PAGE_ANIMATION_SLIDE = 2;
 	public static final int PAGE_ANIMATION_SLIDE2 = 3;
-	public static final int PAGE_ANIMATION_MAX = 3;
+	public static final int PAGE_ANIMATION_BLUR = 4;
+	public static final int PAGE_ANIMATION_DIM = 5;
+	public static final int PAGE_ANIMATION_BLUR_DIM = 6;
+	public static final int PAGE_ANIMATION_MAG = 7;
+	public static final int PAGE_ANIMATION_MAG_DIM = 8;
+	public static final int PAGE_ANIMATION_MAX = 8;
 
 	public static final int SEL_CMD_SELECT_FIRST_SENTENCE_ON_PAGE = 1;
 	public static final int SEL_CMD_NEXT_SENTENCE = 2;
@@ -1296,7 +1302,7 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 						}
 						int dir = mIsPageMode ? x - start_x : y - start_y;
 						if (mGesturePageFlipsPerFullSwipe == 1) {
-							if (pageFlipAnimationSpeedMs == 0 || DeviceInfo.EINK_SCREEN) {
+							if (getPageFlipAnimationSpeedMs() == 0 || DeviceInfo.EINK_SCREEN) {
 								// no animation
 								return performAction(dir < 0 ? ReaderAction.PAGE_DOWN : ReaderAction.PAGE_UP, false);
 							}
@@ -2723,6 +2729,10 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 		return manual;
 	}
 
+	private int getPageFlipAnimationSpeedMs() {
+		return pageFlipAnimationMode!=PAGE_ANIMATION_NONE ? pageFlipAnimationSpeed : 0;
+	}
+
 	/**
 	 * Generate help file (if necessary) and show it.
 	 *
@@ -2774,7 +2784,15 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 			} catch (Exception e) {
 				// ignore
 			}
-			pageFlipAnimationSpeedMs = pageFlipAnimationMode != PAGE_ANIMATION_NONE ? DEF_PAGE_FLIP_MS : 0;
+			//pageFlipAnimationSpeedMs = pageFlipAnimationMode != PAGE_ANIMATION_NONE ? DEF_PAGE_FLIP_MS : 0;
+		} else if (PROP_PAGE_ANIMATION_SPEED.equals(key)) {
+			try {
+				int n = Integer.valueOf(value);
+				pageFlipAnimationSpeed = n;
+			} catch ( Exception e ) {
+				// ignore
+			}
+			//pageFlipAnimationSpeedMs = pageFlipAnimationMode!=PAGE_ANIMATION_NONE ? DEF_PAGE_FLIP_MS : 0;
 		} else if (PROP_CONTROLS_ENABLE_VOLUME_KEYS.equals(key)) {
 			enableVolumeKeys = flg;
 		} else if (PROP_APP_SELECTION_ACTION.equals(key)) {
@@ -3642,8 +3660,9 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 
 	private ViewAnimationControl currentAnimation = null;
 
-	private int pageFlipAnimationSpeedMs = DEF_PAGE_FLIP_MS; // if 0 : no animation
+	//private int pageFlipAnimationSpeedMs = DEF_PAGE_FLIP_MS; // if 0 : no animation
 	private int pageFlipAnimationMode = PAGE_ANIMATION_SLIDE2; //PAGE_ANIMATION_PAPER; // if 0 : no animation
+	private int pageFlipAnimationSpeed = DEF_PAGE_FLIP_MS;
 
 	//	private void animatePageFlip( final int dir ) {
 //		animatePageFlip(dir, null);
@@ -3667,9 +3686,9 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 //							dir2 = 2;
 //						else if ( dir2==-1 )
 //							dir2 = -2;
-				int speed = pageFlipAnimationSpeedMs;
+				int speed = getPageFlipAnimationSpeedMs();
 				if (onFinishHandler != null)
-					speed = pageFlipAnimationSpeedMs / 2;
+					speed = getPageFlipAnimationSpeedMs() / 2;
 				if (currPos.pageMode != 0) {
 					int fromX = dir2 > 0 ? w : 0;
 					int toX = dir2 > 0 ? 0 : w;
@@ -4111,7 +4130,7 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 
 		@Override
 		public void move(int duration, boolean accelerated) {
-			if (duration > 0 && pageFlipAnimationSpeedMs != 0) {
+			if (duration > 0 && getPageFlipAnimationSpeedMs() != 0) {
 				int steps = (int) (duration / getAvgAnimationDrawDuration()) + 2;
 				int x0 = pointerCurrPos;
 				int x1 = pointerDestPos;
@@ -4146,7 +4165,7 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 			if (pointerDestPos != pointerCurrPos) {
 				if (!started)
 					started = true;
-				if (pageFlipAnimationSpeedMs == 0)
+				if (getPageFlipAnimationSpeedMs() == 0)
 					pointerCurrPos = pointerDestPos;
 				else {
 					int delta = pointerCurrPos - pointerDestPos;
@@ -4154,7 +4173,7 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 						delta = -delta;
 					long avgDraw = getAvgAnimationDrawDuration();
 					//int maxStep = (int)(maxY * PAGE_ANIMATION_DURATION / avgDraw);
-					int maxStep = pageFlipAnimationSpeedMs > 0 ? (int) (maxY * 1000 / avgDraw / pageFlipAnimationSpeedMs) : maxY;
+					int maxStep = getPageFlipAnimationSpeedMs() > 0 ? (int) (maxY * 1000 / avgDraw / getPageFlipAnimationSpeedMs()) : maxY;
 					int step;
 					if (delta > maxStep * 2)
 						step = maxStep;
@@ -4249,11 +4268,12 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 		Paint divPaint;
 		Paint[] shadePaints;
 		Paint[] hilitePaints;
-		private final boolean naturalPageFlip;
-		private final boolean flipTwoPages;
+		int pageFlipAnimationM;
 
 		BitmapInfo image1;
 		BitmapInfo image2;
+		Bitmap image1scaled;
+		Bitmap image2scaled;
 
 		PageViewAnimation(int startX, int maxX, int direction) {
 			super();
@@ -4262,8 +4282,7 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 			this.direction = direction;
 			this.currShift = 0;
 			this.destShift = 0;
-			this.naturalPageFlip = (pageFlipAnimationMode == PAGE_ANIMATION_PAPER);
-			this.flipTwoPages = (pageFlipAnimationMode == PAGE_ANIMATION_SLIDE2);
+			this.pageFlipAnimationM = pageFlipAnimationMode;
 
 			long start = android.os.SystemClock.uptimeMillis();
 			log.v("PageViewAnimation -- creating: drawing two pages to buffer");
@@ -4279,7 +4298,15 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 			}
 			this.pageCount = currPos.pageMode;
 			image1 = preparePageImage(0);
+			image1scaled = null;
+			if (image1!=null)
+				image1scaled = Bitmap.createScaledBitmap(
+						image1.bitmap, image1.bitmap.getWidth()/4, image1.bitmap.getHeight()/4, false);
 			image2 = preparePageImage(direction);
+			image2scaled = null;
+			if (image2!=null)
+				image2scaled = Bitmap.createScaledBitmap(
+						image2.bitmap, image2.bitmap.getWidth()/4, image2.bitmap.getHeight()/4, false);
 			if (image1 == null || image2 == null) {
 				log.v("PageViewAnimation -- cannot start animation: page image is null");
 				return;
@@ -4296,17 +4323,17 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 			final int numPaints = 16;
 			shadePaints = new Paint[numPaints];
 			hilitePaints = new Paint[numPaints];
-			for (int i = 0; i < numPaints; i++) {
+			for (int i=0; i<numPaints; i++) {
 				shadePaints[i] = new Paint();
 				hilitePaints[i] = new Paint();
 				hilitePaints[i].setStyle(Paint.Style.FILL);
 				shadePaints[i].setStyle(Paint.Style.FILL);
 				if (mActivity.isNightMode()) {
-					shadePaints[i].setColor(Color.argb((i + 1) * 96 / numPaints, 0, 0, 0));
-					hilitePaints[i].setColor(Color.argb((i + 1) * 96 / numPaints, 64, 64, 64));
+					shadePaints[i].setColor(Color.argb((i+1)*96 / numPaints, 0, 0, 0));
+					hilitePaints[i].setColor(Color.argb((i+1)*96 / numPaints, 64, 64, 64));
 				} else {
-					shadePaints[i].setColor(Color.argb((i + 1) * 96 / numPaints, 0, 0, 0));
-					hilitePaints[i].setColor(Color.argb((i + 1) * 96 / numPaints, 255, 255, 255));
+					shadePaints[i].setColor(Color.argb((i+1)*96 / numPaints, 0, 0, 0));
+					hilitePaints[i].setColor(Color.argb((i+1)*96 / numPaints, 255, 255, 255));
 				}
 			}
 
@@ -4316,14 +4343,14 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 		}
 
 		private void drawGradient(Canvas canvas, Rect rc, Paint[] paints, int startIndex, int endIndex) {
-			int n = (startIndex < endIndex) ? endIndex - startIndex + 1 : startIndex - endIndex + 1;
-			int dir = (startIndex < endIndex) ? 1 : -1;
+			int n = (startIndex<endIndex) ? endIndex-startIndex+1 : startIndex-endIndex + 1;
+			int dir = (startIndex<endIndex) ? 1 : -1;
 			int dx = rc.right - rc.left;
 			Rect rect = new Rect(rc);
-			for (int i = 0; i < n; i++) {
-				int index = startIndex + i * dir;
-				int x1 = rc.left + dx * i / n;
-				int x2 = rc.left + dx * (i + 1) / n;
+			for (int i=0; i<n; i++) {
+				int index = startIndex + i*dir;
+				int x1 = rc.left + dx*i/n;
+				int x2 = rc.left + dx*(i+1)/n;
 				if (x2 > rc.right)
 					x2 = rc.right;
 				rect.left = x1;
@@ -4335,12 +4362,11 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 		}
 
 		private void drawShadow(Canvas canvas, Rect rc) {
-			drawGradient(canvas, rc, shadePaints, shadePaints.length / 2, shadePaints.length / 10);
+			drawGradient(canvas, rc, shadePaints, shadePaints.length/2, shadePaints.length/10);
 		}
 
 		private final static int DISTORT_PART_PERCENT = 30;
-
-		private void drawDistorted(Canvas canvas, Bitmap bmp, Rect src, Rect dst, int dir) {
+		private void drawDistorted( Canvas canvas, Bitmap bmp, Rect src, Rect dst, int dir) {
 			int srcdx = src.width();
 			int dstdx = dst.width();
 			int dx = srcdx - dstdx;
@@ -4362,7 +4388,7 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 
 			if (dx < maxdx) {
 				// start
-				int index = dx >= 0 ? dx * SIN_TABLE_SIZE / maxdx : 0;
+				int index = dx>=0 ? dx * SIN_TABLE_SIZE / maxdx : 0;
 				if (index > DST_TABLE.length)
 					index = DST_TABLE.length;
 				int dstv = DST_TABLE[index] * maxdistortdx / SIN_TABLE_SCALE;
@@ -4375,7 +4401,7 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 				distortanglestart = 0;
 				distortangleend = SRC_TABLE[index];
 				distortdx = maxdistortdx;
-			} else if (dstdx > maxdistortdx) {
+			} else if (dstdx>maxdistortdx) {
 				// middle
 				distortdststart = distortsrcstart = dstdx - maxdistortdx;
 				distortsrcend = distortsrcstart + maxdistortsrc;
@@ -4391,12 +4417,12 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 				distortdx = dstdx;
 				distortsrcstart = 0;
 				int n = maxdistortdx >= dstdx ? maxdistortdx - dstdx : 0;
-				distortsrcend = ASIN_TABLE[SIN_TABLE_SIZE * n / maxdistortdx] * maxdistortsrc / SIN_TABLE_SCALE;
+				distortsrcend = ASIN_TABLE[SIN_TABLE_SIZE * n/maxdistortdx ] * maxdistortsrc / SIN_TABLE_SCALE;
 				distortdststart = 0;
 				distortdstend = dstdx;
 				distortangleend = PI_DIV_2;
 				n = maxdistortdx >= distortdx ? maxdistortdx - distortdx : 0;
-				distortanglestart = ASIN_TABLE[SIN_TABLE_SIZE * (maxdistortdx - distortdx) / maxdistortdx];
+				distortanglestart = ASIN_TABLE[SIN_TABLE_SIZE * (maxdistortdx - distortdx)/maxdistortdx ];
 			}
 
 			Rect srcrc = new Rect(src);
@@ -4419,10 +4445,10 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 				int n = distortdx / 5 + 1;
 				int dst0 = SIN_TABLE[distortanglestart * SIN_TABLE_SIZE / PI_DIV_2] * maxdistortdx / SIN_TABLE_SCALE;
 				int src0 = distortanglestart * maxdistortdx / SIN_TABLE_SCALE;
-				for (int i = 0; i < n; i++) {
+				for (int i=0; i<n; i++) {
 					int angledelta = distortangleend - distortanglestart;
 					int startangle = distortanglestart + i * angledelta / n;
-					int endangle = distortanglestart + (i + 1) * angledelta / n;
+					int endangle = distortanglestart + (i+1) * angledelta / n;
 					int src1 = startangle * maxdistortdx / SIN_TABLE_SCALE - src0;
 					int src2 = endangle * maxdistortdx / SIN_TABLE_SCALE - src0;
 					int dst1 = SIN_TABLE[startangle * SIN_TABLE_SIZE / PI_DIV_2] * maxdistortdx / SIN_TABLE_SCALE - dst0;
@@ -4450,15 +4476,15 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 
 		@Override
 		public void move(int duration, boolean accelerated) {
-			if (duration > 0 && pageFlipAnimationSpeedMs != 0) {
-				int steps = (int) (duration / getAvgAnimationDrawDuration()) + 2;
+			if (duration > 0 && getPageFlipAnimationSpeedMs() != 0) {
+				int steps = (int)(duration / getAvgAnimationDrawDuration()) + 2;
 				int x0 = currShift;
 				int x1 = destShift;
 				if ((x0 - x1) < 10 && (x0 - x1) > -10)
 					steps = 2;
 				for (int i = 1; i < steps; i++) {
 					int x = x0 + (x1 - x0) * i / steps;
-					currShift = accelerated ? accelerate(x0, x1, x) : x;
+					currShift = accelerated ? accelerate( x0, x1, x ) : x;
 					draw();
 				}
 			}
@@ -4474,7 +4500,7 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 			//if ( started ) {
 			boolean moved = false;
 			if (x != -1) {
-				int threshold = mActivity.getPalmTipPixels() * 7 / 8;
+				int threshold = mActivity.getPalmTipPixels() * 7/8;
 				if (direction > 0) {
 					// |  <=====  |
 					int dx = startX - x;
@@ -4494,7 +4520,7 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 					destShift = 0;
 					duration = 200; // 200 ms cancel
 				}
-				move(duration, false);
+				move( duration, false );
 			} else {
 				moved = true;
 			}
@@ -4513,7 +4539,7 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 		@Override
 		public void update(int x, int y) {
 			alog.v("PageViewAnimation.update(" + x + ", " + y + ")");
-			int delta = direction > 0 ? startX - x : x - startX;
+			int delta = direction>0 ? startX - x : x - startX;
 			if (delta <= 0)
 				destShift = 0;
 			else if (delta < maxX)
@@ -4522,19 +4548,20 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 				destShift = maxX;
 		}
 
-		public void animate() {
-			alog.v("PageViewAnimation.animate(" + currShift + " => " + destShift + ") speed=" + pageFlipAnimationSpeedMs);
+		public void animate()
+		{
+			alog.v("PageViewAnimation.animate("+currShift + " => " + destShift + ") speed=" + getPageFlipAnimationSpeedMs());
 			//log.d("animate() is called");
 			if (currShift != destShift) {
 				started = true;
-				if (pageFlipAnimationSpeedMs == 0)
+				if (getPageFlipAnimationSpeedMs() == 0)
 					currShift = destShift;
 				else {
 					int delta = currShift - destShift;
 					if (delta < 0)
 						delta = -delta;
 					long avgDraw = getAvgAnimationDrawDuration();
-					int maxStep = pageFlipAnimationSpeedMs > 0 ? (int) (maxX * 1000 / avgDraw / pageFlipAnimationSpeedMs) : maxX;
+					int maxStep = getPageFlipAnimationSpeedMs() > 0 ? (int)(maxX * 1000 / avgDraw / getPageFlipAnimationSpeedMs()) : maxX;
 					int step;
 					if (delta > maxStep * 2)
 						step = maxStep;
@@ -4542,10 +4569,10 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 						step = (delta + 3) / 4;
 					//int step = delta<3 ? 1 : (delta<5 ? 2 : (delta<10 ? 3 : (delta<15 ? 6 : (delta<25 ? 10 : (delta<50 ? 15 : 30)))));
 					if (currShift < destShift)
-						currShift += step;
+						currShift+=step;
 					else if (currShift > destShift)
-						currShift -= step;
-					alog.v("PageViewAnimation.animate(" + currShift + " => " + destShift + "  step=" + step + ")");
+						currShift-=step;
+					alog.v("PageViewAnimation.animate("+currShift + " => " + destShift + "  step=" + step + ")");
 				}
 				//pointerCurrPos = pointerDestPos;
 				draw();
@@ -4554,8 +4581,9 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 			}
 		}
 
-		public void draw(Canvas canvas) {
-			alog.v("PageViewAnimation.draw(" + currShift + ")");
+		public void draw(Canvas canvas)
+		{
+			alog.v("PageViewAnimation.draw("+currShift + ")");
 //			BitmapInfo image1 = mCurrentPageInfo;
 //			BitmapInfo image2 = mNextPageInfo;
 			if (image1.isReleased() || image2.isReleased())
@@ -4565,11 +4593,11 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 			int div;
 			if (direction > 0) {
 				// FORWARD
-				div = w - currShift;
-				Rect shadowRect = new Rect(div, 0, div + w / 10, h);
-				if (naturalPageFlip) {
+				div = w-currShift;
+				Rect shadowRect = new Rect(div, 0, div+w/10, h);
+				if (pageFlipAnimationM ==  PAGE_ANIMATION_PAPER) {
 					if (this.pageCount == 2) {
-						int w2 = w / 2;
+						int w2 = w/2;
 						if (div < w2) {
 							// left - part of old page
 							Rect src1 = new Rect(0, 0, div, h);
@@ -4605,12 +4633,12 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 						}
 					} else {
 						Rect src1 = new Rect(0, 0, w, h);
-						Rect dst1 = new Rect(0, 0, w - currShift, h);
+						Rect dst1 = new Rect(0, 0, w-currShift, h);
 						//log.v("drawing " + image1);
 						//canvas.drawBitmap(image1.bitmap, src1, dst1, null);
 						drawDistorted(canvas, image1.bitmap, src1, dst1, 1);
-						Rect src2 = new Rect(w - currShift, 0, w, h);
-						Rect dst2 = new Rect(w - currShift, 0, w, h);
+						Rect src2 = new Rect(w-currShift, 0, w, h);
+						Rect dst2 = new Rect(w-currShift, 0, w, h);
 						//log.v("drawing " + image1);
 						drawDimmedBitmap(canvas, image2.bitmap, src2, dst2);
 
@@ -4618,33 +4646,138 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 							drawShadow(canvas, shadowRect);
 					}
 				} else {
-					if (flipTwoPages) {
-						Rect src1 = new Rect(currShift, 0, w, h);
-						Rect dst1 = new Rect(0, 0, w - currShift, h);
-						//log.v("drawing " + image1);
-						drawDimmedBitmap(canvas, image1.bitmap, src1, dst1);
-						Rect src2 = new Rect(0, 0, currShift, h);
-						Rect dst2 = new Rect(w - currShift, 0, w, h);
-						//log.v("drawing " + image1);
-						drawDimmedBitmap(canvas, image2.bitmap, src2, dst2);
-					} else {
-						Rect src1 = new Rect(currShift, 0, w, h);
-						Rect dst1 = new Rect(0, 0, w - currShift, h);
-						//log.v("drawing " + image1);
-						drawDimmedBitmap(canvas, image1.bitmap, src1, dst1);
-						Rect src2 = new Rect(w - currShift, 0, w, h);
-						Rect dst2 = new Rect(w - currShift, 0, w, h);
-						//log.v("drawing " + image1);
-						drawDimmedBitmap(canvas, image2.bitmap, src2, dst2);
+					if (pageFlipAnimationM == PAGE_ANIMATION_BLUR) {
+						int defRadius = 20;
+						int w2 = w / 2;
+						int diff = Math.abs(div - w2);
+						int radius = (diff * defRadius) / w2;
+						if (div < w2) {
+							Rect dst1 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image1);
+							Bitmap blurredBmp = null;
+							if (defRadius - radius > 0)
+								if (image2scaled != null)
+									blurredBmp = FastBlur.doBlur(image2scaled, defRadius - radius, false);
+							drawDimmedBitmap(canvas, blurredBmp == null ? image2.bitmap : blurredBmp, null, dst1);
+						} else {
+							Rect dst2 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image2);
+							Bitmap blurredBmp = null;
+							if (defRadius - radius > 0)
+								if (image1scaled != null)
+									blurredBmp = FastBlur.doBlur(image1scaled, defRadius - radius, false);
+							drawDimmedBitmap(canvas, blurredBmp == null ? image1.bitmap : blurredBmp, null, dst2);
+						}
+					}
+					else if (pageFlipAnimationM == PAGE_ANIMATION_BLUR_DIM) {
+						int defDim = dimmingAlpha;
+						int defRadius = 20;
+						int w2 = w / 2;
+						int diff = Math.abs(div - w2);
+						int dim = (diff * defDim) / w2;
+						int radius = (diff * defRadius) / w2;
+						if (div < w2) {
+							Rect dst1 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image1);
+							Bitmap blurredBmp = null;
+							if (defRadius - radius > 0)
+								if (image2scaled != null)
+									blurredBmp = FastBlur.doBlur(image2scaled, defRadius - radius, false);
+							drawDimmedBitmapAlpha(canvas, blurredBmp == null ? image2.bitmap : blurredBmp, null, dst1, dim);
+						} else {
+							Rect dst2 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image2);
+							Bitmap blurredBmp = null;
+							if (defRadius - radius > 0)
+								if (image1scaled != null)
+									blurredBmp = FastBlur.doBlur(image1scaled, defRadius - radius, false);
+							drawDimmedBitmapAlpha(canvas, blurredBmp == null ? image1.bitmap : blurredBmp, null, dst2, dim);
+						}
+					}
+					else if (pageFlipAnimationM == PAGE_ANIMATION_DIM) {
+						int defDim = dimmingAlpha;
+						int w2 = w / 2;
+						int diff = Math.abs(div - w2);
+						int dim = (diff * defDim) / w2;
+						if (div < w2) {
+							Rect dst1 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image1);
+							drawDimmedBitmapAlpha(canvas, image2.bitmap, null, dst1, dim);
+						} else {
+							Rect dst2 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image2);
+							drawDimmedBitmapAlpha(canvas, image1.bitmap, null, dst2,  dim);
+						}
+					}
+					else if (pageFlipAnimationM == PAGE_ANIMATION_MAG) {
+						int w2 = w / 2;
+						int diff = Math.abs(div - w2);
+						int defMaxW = w/4;
+						int defMaxH = h/4;
+						int curW = defMaxW - (diff * defMaxW) / w2;
+						int curH = defMaxH - (diff * defMaxH) / w2;
+						if (div < w2) {
+							Rect src1 = new Rect(curW, curH, w - curW,  h - curH);
+							Rect dst1 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image1);
+							drawDimmedBitmap(canvas, image2.bitmap, src1, dst1);
+						} else {
+							Rect src2 = new Rect(curW, curH, w - curW,  h - curH);
+							Rect dst2 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image2);
+							drawDimmedBitmap(canvas, image1.bitmap, src2, dst2);
+						}
+					}
+					else if (pageFlipAnimationM == PAGE_ANIMATION_MAG_DIM) {
+						int defDim = dimmingAlpha;
+						int w2 = w / 2;
+						int diff = Math.abs(div - w2);
+						int dim = (diff * defDim) / w2;
+						int defMaxW = w/4;
+						int defMaxH = h/4;
+						int curW = defMaxW - (diff * defMaxW) / w2;
+						int curH = defMaxH - (diff * defMaxH) / w2;
+						if (div < w2) {
+							Rect src1 = new Rect(curW, curH, w - curW,  h - curH);
+							Rect dst1 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image1);
+							drawDimmedBitmapAlpha(canvas, image2.bitmap, src1, dst1, dim);
+						} else {
+							Rect src2 = new Rect(curW, curH, w - curW,  h - curH);
+							Rect dst2 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image2);
+							drawDimmedBitmapAlpha(canvas, image1.bitmap, src2, dst2,  dim);
+						}
+					}
+					else {
+						if (pageFlipAnimationM == PAGE_ANIMATION_SLIDE2) {
+							Rect src1 = new Rect(currShift, 0, w, h);
+							Rect dst1 = new Rect(0, 0, w-currShift, h);
+							//log.v("drawing " + image1);
+							drawDimmedBitmap(canvas, image1.bitmap, src1, dst1);
+							Rect src2 = new Rect(0, 0, currShift, h);
+							Rect dst2 = new Rect(w-currShift, 0, w, h);
+							//log.v("drawing " + image2);
+							drawDimmedBitmap(canvas, image2.bitmap, src2, dst2);
+						} else {
+							Rect src1 = new Rect(currShift, 0, w, h);
+							Rect dst1 = new Rect(0, 0, w - currShift, h);
+							//log.v("drawing " + image1);
+							drawDimmedBitmap(canvas, image1.bitmap, src1, dst1);
+							Rect src2 = new Rect(w - currShift, 0, w, h);
+							Rect dst2 = new Rect(w - currShift, 0, w, h);
+							//log.v("drawing " + image2);
+							drawDimmedBitmap(canvas, image2.bitmap, src2, dst2);
+						}
 					}
 				}
 			} else {
 				// BACK
 				div = currShift;
-				Rect shadowRect = new Rect(div, 0, div + 10, h);
-				if (naturalPageFlip) {
+				Rect shadowRect = new Rect(div, 0, div+10, h);
+				if (pageFlipAnimationM ==  PAGE_ANIMATION_PAPER) {
 					if (this.pageCount == 2) {
-						int w2 = w / 2;
+						int w2 = w/2;
 						if (div < w2) {
 							// left - part of old page
 							Rect src1 = new Rect(0, 0, div, h);
@@ -4690,20 +4823,123 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 							drawShadow(canvas, shadowRect);
 					}
 				} else {
-					if (flipTwoPages) {
-						Rect src1 = new Rect(0, 0, w - currShift, h);
-						Rect dst1 = new Rect(currShift, 0, w, h);
-						drawDimmedBitmap(canvas, image1.bitmap, src1, dst1);
-						Rect src2 = new Rect(w - currShift, 0, w, h);
-						Rect dst2 = new Rect(0, 0, currShift, h);
-						drawDimmedBitmap(canvas, image2.bitmap, src2, dst2);
+					if (pageFlipAnimationM ==  PAGE_ANIMATION_BLUR) {
+						int defRadius = 20;
+						int w2 = w / 2;
+						int diff = Math.abs(div - w2);
+						int radius = (diff * defRadius) / w2;
+						if (div < w2) {
+							Rect dst1 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image1);
+							Bitmap blurredBmp = null;
+							if (defRadius - radius > 0)
+								if (image1scaled != null)
+									blurredBmp = FastBlur.doBlur(image1scaled, defRadius - radius, false);
+							drawDimmedBitmap(canvas, blurredBmp == null ? image1.bitmap : blurredBmp, null, dst1);
+						} else {
+							Rect dst2 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image2);
+							Bitmap blurredBmp = null;
+							if (defRadius - radius > 0)
+								if (image2scaled != null)
+									blurredBmp = FastBlur.doBlur(image2scaled, defRadius - radius, false);
+							drawDimmedBitmap(canvas, blurredBmp == null ? image2.bitmap : blurredBmp, null, dst2);
+						}
+					}
+					else if (pageFlipAnimationM == PAGE_ANIMATION_BLUR_DIM) {
+						int defDim = dimmingAlpha;
+						int defRadius = 20;
+						int w2 = w / 2;
+						int diff = Math.abs(div - w2);
+						int dim = (diff * defDim) / w2;
+						int radius = (diff * defRadius) / w2;
+						if (div < w2) {
+							Rect dst1 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image1);
+							Bitmap blurredBmp = null;
+							if (defRadius - radius > 0)
+								if (image2scaled != null)
+									blurredBmp = FastBlur.doBlur(image1scaled, defRadius - radius, false);
+							drawDimmedBitmapAlpha(canvas, blurredBmp == null ? image1.bitmap : blurredBmp, null, dst1, dim);
+						} else {
+							Rect dst2 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image2);
+							Bitmap blurredBmp = null;
+							if (defRadius - radius > 0)
+								if (image1scaled != null)
+									blurredBmp = FastBlur.doBlur(image2scaled, defRadius - radius, false);
+							drawDimmedBitmapAlpha(canvas, blurredBmp == null ? image2.bitmap : blurredBmp, null, dst2, dim);
+						}
+					}
+					else if (pageFlipAnimationM == PAGE_ANIMATION_DIM) {
+						int defDim = dimmingAlpha;
+						int w2 = w / 2;
+						int diff = Math.abs(div - w2);
+						int dim = (diff * defDim) / w2;
+						if (div < w2) {
+							Rect dst1 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image1);
+							drawDimmedBitmapAlpha(canvas, image1.bitmap, null, dst1, dim);
+						} else {
+							Rect dst2 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image2);
+							drawDimmedBitmapAlpha(canvas, image2.bitmap, null, dst2,  dim);
+						}
+
+					} else if (pageFlipAnimationM == PAGE_ANIMATION_MAG) {
+						int w2 = w / 2;
+						int diff = Math.abs(div - w2);
+						int defMaxW = w/4;
+						int defMaxH = h/4;
+						int curW = defMaxW - (diff * defMaxW) / w2;
+						int curH = defMaxH - (diff * defMaxH) / w2;
+						if (div < w2) {
+							Rect src1 = new Rect(curW, curH, w - curW,  h - curH);
+							Rect dst1 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image1);
+							drawDimmedBitmap(canvas, image1.bitmap, src1, dst1);
+						} else {
+							Rect src2 = new Rect(curW, curH, w - curW,  h - curH);
+							Rect dst2 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image2);
+							drawDimmedBitmap(canvas, image2.bitmap, src2, dst2);
+						}
+					}  else if (pageFlipAnimationM == PAGE_ANIMATION_MAG_DIM) {
+						int defDim = dimmingAlpha;
+						int w2 = w / 2;
+						int diff = Math.abs(div - w2);
+						int dim = (diff * defDim) / w2;
+						int defMaxW = w/4;
+						int defMaxH = h/4;
+						int curW = defMaxW - (diff * defMaxW) / w2;
+						int curH = defMaxH - (diff * defMaxH) / w2;
+						if (div < w2) {
+							Rect src1 = new Rect(curW, curH, w - curW,  h - curH);
+							Rect dst1 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image1);
+							drawDimmedBitmapAlpha(canvas, image1.bitmap, src1, dst1, dim);
+						} else {
+							Rect src2 = new Rect(curW, curH, w - curW,  h - curH);
+							Rect dst2 = new Rect(0, 0, w, h);
+							//log.v("drawing " + image2);
+							drawDimmedBitmapAlpha(canvas, image2.bitmap, src2, dst2, dim);
+						}
 					} else {
-						Rect src1 = new Rect(currShift, 0, w, h);
-						Rect dst1 = new Rect(currShift, 0, w, h);
-						drawDimmedBitmap(canvas, image1.bitmap, src1, dst1);
-						Rect src2 = new Rect(w - currShift, 0, w, h);
-						Rect dst2 = new Rect(0, 0, currShift, h);
-						drawDimmedBitmap(canvas, image2.bitmap, src2, dst2);
+						if (pageFlipAnimationM ==  PAGE_ANIMATION_SLIDE2) {
+							Rect src1 = new Rect(0, 0, w - currShift, h);
+							Rect dst1 = new Rect(currShift, 0, w, h);
+							drawDimmedBitmap(canvas, image1.bitmap, src1, dst1);
+							Rect src2 = new Rect(w - currShift, 0, w, h);
+							Rect dst2 = new Rect(0, 0, currShift, h);
+							drawDimmedBitmap(canvas, image2.bitmap, src2, dst2);
+						} else {
+							Rect src1 = new Rect(currShift, 0, w, h);
+							Rect dst1 = new Rect(currShift, 0, w, h);
+							drawDimmedBitmap(canvas, image1.bitmap, src1, dst1);
+							Rect src2 = new Rect(w - currShift, 0, w, h);
+							Rect dst2 = new Rect(0, 0, currShift, h);
+							drawDimmedBitmap(canvas, image2.bitmap, src2, dst2);
+						}
 					}
 				}
 			}
@@ -5023,9 +5259,24 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 		}
 	}
 
+	private void dimRectAlpha( Canvas canvas, Rect dst, int alpha ) {
+		if (DeviceInfo.EINK_SCREEN)
+			return; // no backlight
+		if (alpha != 255) {
+			Paint p = new Paint();
+			p.setColor((255-alpha)<<24);
+			canvas.drawRect(dst, p);
+		}
+	}
+
 	private void drawDimmedBitmap(Canvas canvas, Bitmap bmp, Rect src, Rect dst) {
 		canvas.drawBitmap(bmp, src, dst, null);
 		dimRect(canvas, dst);
+	}
+
+	private void drawDimmedBitmapAlpha( Canvas canvas, Bitmap bmp, Rect src, Rect dst, int alpha ) {
+		canvas.drawBitmap(bmp, src, dst, null);
+		dimRectAlpha( canvas, dst, alpha );
 	}
 
 	protected void drawPageBackground(Canvas canvas, Rect dst, int side) {

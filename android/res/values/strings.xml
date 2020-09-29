@@ -268,6 +268,17 @@
     <string name="mi_book_browser_normal_mode">Normal mode</string>
     <string name="mi_book_browser_simple_mode">Simple file list</string>
     <string name="options_page_animation_slide_2_pages">Slide (2 pages)</string>
+    <string name="options_page_animation_blur">Blur</string>
+    <string name="options_page_animation_blur_dim">Blur with dim</string>
+    <string name="options_page_animation_mag">Magnification</string>
+    <string name="options_page_animation_mag_dim">Magnification with dim</string>
+    <string name="options_page_animation_dim">Dim</string>
+    <string name="page_animation_speed">Page speed animation</string>
+    <string name="page_animation_speed_1">fastest</string>
+    <string name="page_animation_speed_2">fast</string>
+    <string name="page_animation_speed_3">normal</string>
+    <string name="page_animation_speed_4">slow</string>
+    <string name="page_animation_speed_5">slower</string>
     <string name="progress_downloading">Downloading</string>
     <string name="mi_book_opds_root">Online catalogs</string>
     <string name="mi_tts_play">Read Aloud</string>
@@ -425,7 +436,7 @@
     <string name="options_font_fallback_face">Fallback font</string>
     <string name="win_title_confirm_catalog_delete">Do you really want to delete this catalog?</string>
     <string name="win_title_confirm_history_record_delete">Do you really want to remove this book from recent list?</string>
-    <string name="win_title_confirm_book_delete">Do you really want to delete this book?</string>
+    <string name="win_title_confirm_book_delete">Do you really want to delete this book / archive ?</string>
     <string name="book_info_book_language">Language</string>
     <string name="folder_name_books_by_series">Series</string>
     <string name="folder_name_books_by_title">Titles</string>
@@ -663,6 +674,9 @@
     <string name="sync_confirmation_other_book">Another book (%s) was opened on another device, switch to it?</string>
     <string name="sync_confirmation_new_reading_position">New reading position found for this book, update?</string>
     <string name="autosave_period">Autosave period</string>
+    <string name="choose_root_sd">Could not delete file, if the file is on External SD, choose ExtSD root in the dialog</string>
+    <string name="could_not_delete_on_sd">Could not find file, make sure the root of ExtSD was selected</string>>
+    <string name="could_not_delete_file">Could not delete file</string>>
     <string name="autosave_period_off">Off</string>
     <string name="autosave_period_1min">1 minute</string>
     <string name="autosave_period_2min">2 minutes</string>

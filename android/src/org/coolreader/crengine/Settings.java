@@ -45,6 +45,7 @@ public interface Settings {
     public static final String PROP_ROUNDED_CORNERS_MARGIN  ="crengine.rounded.corners.margin";
     public static final String PROP_PAGE_VIEW_MODE          ="crengine.page.view.mode"; // pages/scroll
     public static final String PROP_PAGE_ANIMATION          ="crengine.page.animation";
+	public static final String PROP_PAGE_ANIMATION_SPEED	="crengine.page.animation.speed";
     public static final String PROP_INTERLINE_SPACE         ="crengine.interline.space";
     public static final String PROP_ROTATE_ANGLE            ="window.rotate.angle";
     public static final String PROP_EMBEDDED_STYLES         ="crengine.doc.embedded.styles.enabled";
