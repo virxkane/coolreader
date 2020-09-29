@@ -652,4 +652,18 @@
     <string name="choose_root_sd">Невозможно удалить файл, если файл находится на внешней SD карте, выберите корень внешней SD карты в диалоге</string>
     <string name="could_not_delete_on_sd">Невозможно найти файл, убедитесь, что был выбран корень внешней SD карты</string>>
     <string name="could_not_delete_file">Невозможно удалить файл</string>>
+    <string name="bookmarks_keepalive_">Удалять копии закладок старее чем…</string>
+    <string name="bookmarks_keepalive_off">Отключено</string>
+    <string name="bookmarks_keepalive_1day">1 день</string>
+    <string name="bookmarks_keepalive_2days">2 дня</string>
+    <string name="bookmarks_keepalive_3days">3 дня</string>
+    <string name="bookmarks_keepalive_4days">4 дня</string>
+    <string name="bookmarks_keepalive_5days">5 дней</string>
+    <string name="bookmarks_keepalive_6days">6 дней</string>
+    <string name="bookmarks_keepalive_1week">1 неделя</string>
+    <string name="bookmarks_keepalive_2weeks">2 недели</string>
+    <string name="bookmarks_keepalive_1month">1 месяц</string>
+    <string name="bookmarks_keepalive_1quarter">1 квартал</string>
+    <string name="bookmarks_keepalive_half_a_year">полгода</string>
+    <string name="bookmarks_keepalive_1year">1 год</string>
 </resources>

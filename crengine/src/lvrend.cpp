@@ -51,10 +51,6 @@
 // crengine default used to be "width: 100%", but now that we
 // can shrink to fit, it is "width: auto".
 
-bool gHangingPunctuationEnabled = false;
-
-int gInterlineScaleFactor = INTERLINE_SCALE_FACTOR_NO_SCALE;
-
 int gRenderDPI = DEF_RENDER_DPI; // if 0: old crengine behaviour: 1px/pt=1px, 1in/cm/pc...=0px
 bool gRenderScaleFontWithDPI = DEF_RENDER_SCALE_FONT_WITH_DPI;
 int gRootFontSize = 24; // will be reset as soon as font size is set
@@ -65,19 +61,6 @@ int scaleForRenderDPI( int value ) {
         value = value * gRenderDPI / BASE_CSS_DPI;
     }
     return value;
-}
-
-int gRenderBlockRenderingFlags = BLOCK_RENDERING_FLAGS_DEFAULT;
-
-int validateBlockRenderingFlags(int f) {
-    // Check coherency and ensure dependancies of flags
-    if (f & ~BLOCK_RENDERING_ENHANCED) // If any other flag is set,
-        f |= BLOCK_RENDERING_ENHANCED; // set ENHANGED
-    if (f & BLOCK_RENDERING_FLOAT_FLOATBOXES)
-        f |= BLOCK_RENDERING_PREPARE_FLOATBOXES;
-    if (f & BLOCK_RENDERING_PREPARE_FLOATBOXES)
-        f |= BLOCK_RENDERING_WRAP_FLOATS;
-    return f;
 }
 
 // Uncomment for debugging enhanced block rendering
@@ -219,6 +202,7 @@ public:
 class CCRTableRowGroup {
 public:
     int index;
+    int kind; // erm_table_header_group, erm_table_row_group or erm_table_footer_group
     int height;
     int y;
     ldomNode * elem;
@@ -329,6 +313,7 @@ public:
     bool avoid_pb_inside;
     bool enhanced_rendering;
     bool is_ruby_table;
+    bool rows_rendering_reordered;
     ldomNode * elem;
     ldomNode * caption;
     int caption_h;
@@ -409,6 +394,7 @@ public:
                         currentRowGroup = new CCRTableRowGroup();
                         currentRowGroup->elem = item;
                         currentRowGroup->index = rowgroups.length();
+                        currentRowGroup->kind = rendMethod;
                         rowgroups.add( currentRowGroup );
                         LookupElem( item, item_direction, 0 );
                         currentRowGroup = NULL;
@@ -589,6 +575,104 @@ public:
             }
         }
         return 0;
+    }
+
+    void FixRowGroupsOrder() {
+        if ( !enhanced_rendering )
+            return;
+        if ( rowgroups.length() == 0 )
+            return;
+
+        // THEAD TBODY/TR TFOOT usually comes in this logical order,
+        // but with CSS, "display:table-header-group" might be used
+        // to render some element above others even if it is after
+        // them in the DOM.
+        // (This is done by the MathML CSS profile, for example with
+        // <msup>, to render the superscript in a top table row).
+        //
+        // Note that Firefox only moves the *first* table-header-group and
+        // the *first* table-footer-group met.
+        // https://www.w3.org/TR/CSS2/tables.html#table-display says the same:
+        //   "If a table contains multiple elements with 'display: table-header-group',
+        //    only the first is rendered as a header; the others are treated as if they
+        //    had 'display: table-row-group'. "
+        // So, we will handle only the first ones met.
+        //
+        // (At this point, row->index have not yet been set, so
+        // we have just 'rowgroups' and 'rows' arrays, that we
+        // can just re-order without any other fix.)
+        //
+        // This might cause some issues if the reordered things contain
+        // some rowspan/colspan crossing row groups... Firefox limits
+        // the rowspan effect to inside each table group, but we don't
+        // do that. Hopefully, this kind of HTML error must be rare.
+
+        // Look for the first erm_table_header_group
+        for ( int i=0; i < rowgroups.length(); i++ ) {
+            if ( rowgroups[i]->kind == erm_table_header_group ) {
+                CCRTableRowGroup * first_header_group = rowgroups[i];
+                if ( i > 0 ) {
+                    // It is not first in rowgroups: move it at start
+                    rowgroups.move(0, i); // move(indexTo, indexFrom)
+                    rows_rendering_reordered = true;
+                }
+                // Even if this group was first among groups, we may have
+                // before its rows other table-rows not part of any group:
+                // we need to move the rows part of this rowgroup before
+                // all other rows.
+                bool group_met = false;
+                int dest_idx = 0;
+                for ( int j=0; j < rows.length(); j++ ) {
+                    if ( rows[j]->rowgroup == first_header_group ) {
+                        if ( j != dest_idx ) {
+                            rows.move(dest_idx, j); // move(indexTo, indexFrom)
+                            rows_rendering_reordered = true;
+                            dest_idx++;
+                        }
+                        group_met = true;
+                    }
+                    else if ( group_met ) {
+                        // Not a row part of first_header_group: we moved
+                        // all its rows, we're done.
+                        break;
+                    }
+                }
+                break; // Only deal with the first one met
+            }
+        }
+        // Look for the first erm_table_footer_group
+        for ( int i=0; i < rowgroups.length(); i++ ) {
+            if ( rowgroups[i]->kind == erm_table_footer_group ) {
+                CCRTableRowGroup * first_footer_group = rowgroups[i];
+                if ( i < rowgroups.length()-1 ) {
+                    // It is not last in rowgroups: move it at end
+                    rowgroups.move(rowgroups.length()-1, i); // move(indexTo, indexFrom)
+                    rows_rendering_reordered = true;
+                }
+                // Even if this group was last among groups, we may have
+                // after its rows other table-rows not part of any group:
+                // we need to move the rows part of this rowgroup after
+                // all other rows.
+                bool group_met = false;
+                int dest_idx = rows.length()-1;
+                for ( int j=rows.length()-1; j >= 0; j-- ) {
+                    if ( rows[j]->rowgroup == first_footer_group ) {
+                        if ( j != dest_idx ) {
+                            rows.move(dest_idx, j); // move(indexTo, indexFrom)
+                            rows_rendering_reordered = true;
+                        }
+                        dest_idx--;
+                        group_met = true;
+                    }
+                    else if ( group_met ) {
+                        // Not a row part of first_footer_group: we moved
+                        // all its rows, we're done.
+                        break;
+                    }
+                }
+                break; // Only deal with the first one met
+            }
+        }
     }
 
     // More or less complex algorithms to calculate column widths are described at:
@@ -1581,7 +1665,7 @@ public:
                         // Except when table is a single column, and we can just
                         // transfer lines to the upper context.
                         LVRendPageContext * cell_context;
-                        int rend_flags = gRenderBlockRenderingFlags; // global flags
+                        int rend_flags = elem->getDocument()->getRenderBlockRenderingFlags();
                         if ( is_single_column ) {
                             row->single_col_context = new LVRendPageContext(NULL, context.getPageHeight());
                             cell_context = row->single_col_context;
@@ -2045,17 +2129,28 @@ public:
         avoid_pb_inside = tbl_avoid_pb_inside;
         enhanced_rendering = tbl_enhanced_rendering;
         is_ruby_table = tbl_is_ruby_table;
+        rows_rendering_reordered = false;
         #ifdef DEBUG_TABLE_RENDERING
             printf("TABLE: ============ parsing new table %s\n",
                 UnicodeToLocal(ldomXPointer(elem, 0).toString()).c_str());
         #endif
         LookupElem( tbl_elem, direction, 0 );
+        FixRowGroupsOrder();
         if ( is_ruby_table && rows.length() >= 2 ) {
             // Move 2nd row (first ruby annotation) to 1st position,
             // so base ruby text (initially 1st row) becomes 2nd
             rows.move(0, 1);
+            rows_rendering_reordered = true;
         }
         PlaceCells();
+        if ( enhanced_rendering && rows_rendering_reordered ) {
+            // printf("table rows re-ordered: %s\n", UnicodeToLocal(ldomXPointer(elem, 0).toString()).c_str());
+            RenderRectAccessor fmt( elem );
+            RENDER_RECT_SET_FLAG(fmt, CHILDREN_RENDERING_REORDERED);
+            if ( !is_ruby_table ) { // don't show this warning as it's expected with ruby
+                elem->getDocument()->printWarning("table rows/thead/tfoot re-ordered", 2);
+            }
+        }
     }
 };
 
@@ -2346,9 +2441,10 @@ void SplitLines( const lString16 & str, lString16Collection & lines )
 lString16 renderListItemMarker( ldomNode * enode, int & marker_width, LFormattedText * txform, int line_h, lUInt32 flags ) {
     lString16 marker;
     marker_width = 0;
+    ldomDocument* doc = enode->getDocument();
     // The UL > LI parent-child chain may have had some of our boxing elements inserted
     ldomNode * parent = enode->getUnboxedParent();
-    ListNumberingPropsRef listProps =  enode->getDocument()->getNodeNumberingProps( parent->getDataIndex() );
+    ListNumberingPropsRef listProps =  doc->getNodeNumberingProps( parent->getDataIndex() );
     if ( listProps.isNull() ) { // no previously cached info: compute and cache it
         // Scan all our siblings to know the widest marker width
         int counterValue = 0;
@@ -2364,7 +2460,7 @@ lString16 renderListItemMarker( ldomNode * enode, int & marker_width, LFormatted
             sibling = sibling->getUnboxedNextSibling(true); // skip text nodes
         }
         listProps = ListNumberingPropsRef( new ListNumberingProps(counterValue, maxWidth) );
-        enode->getDocument()->setNodeNumberingProps( parent->getDataIndex(), listProps );
+        doc->setNodeNumberingProps( parent->getDataIndex(), listProps );
     }
     // Note: node->getNodeListMarker() uses font->getTextWidth() without any hint about
     // text direction, so the marker is measured LTR.. We should probably upgrade them
@@ -2389,8 +2485,8 @@ lString16 renderListItemMarker( ldomNode * enode, int & marker_width, LFormatted
                 line_h = lengthToPx(style->line_height, em, em, true);
             }
             // Scale it according to gInterlineScaleFactor
-            if (style->line_height.type != css_val_screen_px && gInterlineScaleFactor != INTERLINE_SCALE_FACTOR_NO_SCALE)
-                line_h = (line_h * gInterlineScaleFactor) >> INTERLINE_SCALE_FACTOR_SHIFT;
+            if (style->line_height.type != css_val_screen_px && doc->getInterlineScaleFactor() != INTERLINE_SCALE_FACTOR_NO_SCALE)
+                line_h = (line_h * doc->getInterlineScaleFactor()) >> INTERLINE_SCALE_FACTOR_SHIFT;
             if ( STYLE_HAS_CR_HINT(style, STRUT_CONFINED) )
                 flags |= LTEXT_STRUT_CONFINED;
         }
@@ -2465,6 +2561,7 @@ bool renderAsListStylePositionInside( const css_style_ref_t style, bool is_rtl=f
 // and to get paragraph direction (LTR/RTL/UNSET).
 void renderFinalBlock( ldomNode * enode, LFormattedText * txform, RenderRectAccessor * fmt, lUInt32 & baseflags, int indent, int line_h, TextLangCfg * lang_cfg, int valign_dy, bool * is_link_start )
 {
+    bool legacy_render = !BLOCK_RENDERING(enode->getDocument()->getRenderBlockRenderingFlags(), ENHANCED);
     if ( enode->isElement() ) {
         lvdom_element_render_method rm = enode->getRendMethod();
         if ( rm == erm_invisible )
@@ -2516,7 +2613,7 @@ void renderFinalBlock( ldomNode * enode, LFormattedText * txform, RenderRectAcce
         // as in CoolReader 3.2.38 and earlier, i.e. set is_block to true for
         // any block elements.
         bool is_block = rm == erm_final;
-        if (!BLOCK_RENDERING_G(ENHANCED) && !is_block) {
+        if (legacy_render && !is_block) {
             is_block = style->display >= css_d_block;
             if (is_block) {
                 // Hack for "legacy" rendering mode:
@@ -2638,18 +2735,18 @@ void renderFinalBlock( ldomNode * enode, LFormattedText * txform, RenderRectAcce
         // Scale line_h according to gInterlineScaleFactor, but not if
         // it was already in screen_px, which means it has already been
         // scaled (in setNodeStyle() when inherited).
-        if ( style->line_height.type != css_val_screen_px && gInterlineScaleFactor != INTERLINE_SCALE_FACTOR_NO_SCALE ) {
+        if ( style->line_height.type != css_val_screen_px && enode->getDocument()->getInterlineScaleFactor() != INTERLINE_SCALE_FACTOR_NO_SCALE ) {
             if ( RENDER_RECT_PTR_HAS_FLAG(fmt, NO_INTERLINE_SCALE_UP)
-                    && gInterlineScaleFactor > INTERLINE_SCALE_FACTOR_NO_SCALE ) {
+                    && enode->getDocument()->getInterlineScaleFactor() > INTERLINE_SCALE_FACTOR_NO_SCALE ) {
                 // Don't scale up (for <ruby> content, so we can increase interline to make
                 // the text breath without spreading ruby annotations on the space gained)
             }
             else {
-                line_h = (line_h * gInterlineScaleFactor) >> INTERLINE_SCALE_FACTOR_SHIFT;
+                line_h = (line_h * enode->getDocument()->getInterlineScaleFactor()) >> INTERLINE_SCALE_FACTOR_SHIFT;
             }
         }
 
-        if ( (flags & LTEXT_FLAG_NEWLINE) && ( rm == erm_final || ( !BLOCK_RENDERING_G(ENHANCED) && is_block ) ) ) {
+        if ( (flags & LTEXT_FLAG_NEWLINE) && ( rm == erm_final || ( legacy_render && is_block ) ) ) {
             // Top and single 'final' node (unless in the degenerate case
             // of obsolete css_d_list_item_legacy):
             // Get text-indent and line-height that will apply to the full final block
@@ -3334,7 +3431,7 @@ void renderFinalBlock( ldomNode * enode, LFormattedText * txform, RenderRectAcce
                 break;
             }
             // Among inline nodes, only <BR> can carry a "clear: left/right/both".
-            // (No need to check for BLOCK_RENDERING_G(FLOAT_FLOATBOXES), this
+            // (No need to check for BLOCK_RENDERING(rend_flags, FLOAT_FLOATBOXES), this
             // should have no effect when there is not a single float in the way)
             baseflags &= ~LTEXT_SRC_IS_CLEAR_BOTH; // clear previous one
             switch (style->clear) {
@@ -3444,7 +3541,7 @@ void renderFinalBlock( ldomNode * enode, LFormattedText * txform, RenderRectAcce
             } else {
             }
             */
-            if ( !BLOCK_RENDERING_G(ENHANCED) ) {
+            if ( legacy_render ) {
                 // Removal of leading spaces is now managed directly by lvtextfm
                 // but in legacy render mode we don't add lines with only spaces.
                 //int offs = 0;
@@ -3807,7 +3904,7 @@ int pagebreakhelper(ldomNode *enode,int width)
 
 // Prototypes of the 2 alternative block rendering recursive functions
 int  renderBlockElementLegacy(LVRendPageContext & context, ldomNode * enode, int x, int y, int width , int usable_right_overflow);
-void renderBlockElementEnhanced( FlowState * flow, ldomNode * enode, int x, int width, int flags );
+void renderBlockElementEnhanced( FlowState * flow, ldomNode * enode, int x, int width, lUInt32 flags );
 
 // Legacy/original CRE block rendering
 int renderBlockElementLegacy( LVRendPageContext & context, ldomNode * enode, int x, int y, int width, int usable_right_overflow )
@@ -6155,7 +6252,7 @@ int BlockFloatFootprint::getTopShiftX(int final_width, bool get_right_shift)
 }
 
 // Enhanced block rendering
-void renderBlockElementEnhanced( FlowState * flow, ldomNode * enode, int x, int container_width, int flags )
+void renderBlockElementEnhanced( FlowState * flow, ldomNode * enode, int x, int container_width, lUInt32 flags )
 {
     if (!enode)
         return;
@@ -6349,8 +6446,8 @@ void renderBlockElementEnhanced( FlowState * flow, ldomNode * enode, int x, int 
             // Scale line_h according to gInterlineScaleFactor, but not if
             // it was already in screen_px, which means it has already been
             // scaled (in setNodeStyle() when inherited).
-            if (style->line_height.type != css_val_screen_px && gInterlineScaleFactor != INTERLINE_SCALE_FACTOR_NO_SCALE)
-                line_h = (line_h * gInterlineScaleFactor) >> INTERLINE_SCALE_FACTOR_SHIFT;
+            if (style->line_height.type != css_val_screen_px && enode->getDocument()->getInterlineScaleFactor() != INTERLINE_SCALE_FACTOR_NO_SCALE)
+                line_h = (line_h * enode->getDocument()->getInterlineScaleFactor()) >> INTERLINE_SCALE_FACTOR_SHIFT;
             style_height.value = line_h;
             style_height.type = css_val_screen_px;
         }
@@ -6882,6 +6979,8 @@ void renderBlockElementEnhanced( FlowState * flow, ldomNode * enode, int x, int 
                 // like it does not really need to.
                 int h = renderTable( *(flow->getPageContext()), enode, 0, flow->getCurrentRelativeY(),
                             table_width, table_shrink_to_fit, fitted_width, direction, avoid_pb_inside, true, is_ruby_table );
+                // Reload fmt, as renderTable() may have set some flags
+                fmt = RenderRectAccessor( enode );
                 // (It feels like we don't need to ensure a table specified height.)
                 fmt.setHeight( h );
                 // Update table width if it was fitted/shrunk
@@ -7602,8 +7701,8 @@ void renderBlockElementEnhanced( FlowState * flow, ldomNode * enode, int x, int 
 }
 
 // Entry points for rendering the root node, a table cell or a float
-int renderBlockElement( LVRendPageContext & context, ldomNode * enode, int x, int y, int width,
-            int usable_left_overflow, int usable_right_overflow, int direction, int * baseline, int rend_flags )
+int renderBlockElement(LVRendPageContext & context, ldomNode * enode, int x, int y, int width,
+            int usable_left_overflow, int usable_right_overflow, int direction, int * baseline, lUInt32 rend_flags )
 {
     if ( BLOCK_RENDERING(rend_flags, ENHANCED) ) {
         // Create a flow state (aka "block formatting context") for the rendering
@@ -7633,10 +7732,8 @@ int renderBlockElement( LVRendPageContext & context, ldomNode * enode, int x, in
 int renderBlockElement( LVRendPageContext & context, ldomNode * enode, int x, int y, int width,
             int usable_left_overflow, int usable_right_overflow, int direction, int * baseline )
 {
-    // Use global rendering flags
-    // Note: we're not currently using it with other flags that the global ones.
     return renderBlockElement( context, enode, x, y, width, usable_left_overflow, usable_right_overflow,
-                                        direction, baseline, gRenderBlockRenderingFlags );
+                                        direction, baseline, enode->getDocument()->getRenderBlockRenderingFlags() );
 }
 
 //draw border lines,support color,width,all styles, not support border-collapse
@@ -8338,6 +8435,7 @@ void DrawDocument( LVDrawBuf & drawbuf, ldomNode * enode, int x0, int y0, int dx
         doc_x += fmt.getX();
         doc_y += fmt.getY();
         lvdom_element_render_method rm = enode->getRendMethod();
+        lUInt32 rend_flags = enode->getDocument()->getRenderBlockRenderingFlags();
         // A few things differ when done for TR, THEAD, TBODY and TFOOT
         // (erm_table_row_group, erm_table_header_group, erm_table_footer_group, erm_table_row)
         bool isTableRowLike = rm >= erm_table_row_group && rm <= erm_table_row;
@@ -8355,7 +8453,7 @@ void DrawDocument( LVDrawBuf & drawbuf, ldomNode * enode, int x0, int y0, int dx
             if ( !isTableRowLike ) {
                 return; // out of range
             }
-            if ( BLOCK_RENDERING_G(ENHANCED) ) {
+            if ( BLOCK_RENDERING(rend_flags, ENHANCED) ) {
                 // But in enhanced mode, we have set bottom overflow on
                 // TR and table row groups, so we can trust them.
                 return; // out of range
@@ -8505,7 +8603,7 @@ void DrawDocument( LVDrawBuf & drawbuf, ldomNode * enode, int x0, int y0, int dx
                     // first final children would start being drawn further because
                     // some outer floats are involved (as Calibre and Firefox do).
                     int shift_x = 0;
-                    if ( BLOCK_RENDERING_G(ENHANCED) ) {
+                    if ( BLOCK_RENDERING(rend_flags, ENHANCED) ) {
                         ldomNode * tmpnode = enode;
                         // Just look at each first descendant for a final child (we may find
                         // none and would have to look at next children, but well...)
@@ -8846,8 +8944,9 @@ void setNodeStyle( ldomNode * enode, css_style_ref_t parent_style, LVFontRef par
     css_style_rec_t * pstyle = style.get();
 
     lUInt16 nodeElementId = enode->getNodeId();
+    lUInt32 domVersionRequested = enode->getDocument() ? enode->getDocument()->getDOMVersionRequested() : 0;
 
-    if (gDOMVersionRequested < 20180524) {
+    if (domVersionRequested < 20180524) {
         // The display property initial value has been changed from css_d_inherit
         // to css_d_inline (as per spec, and so that an unknown element does not
         // become block when contained in a P, and inline when contained in a SPAN)
@@ -8867,14 +8966,14 @@ void setNodeStyle( ldomNode * enode, css_style_ref_t parent_style, LVFontRef par
         pstyle->white_space = type_ptr->white_space;
 
         // Account for backward incompatible changes in fb2def.h
-        if (gDOMVersionRequested < 20200824) { // revert what was changed 20200824
+        if (domVersionRequested < 20200824) { // revert what was changed 20200824
             if (nodeElementId >= el_details && nodeElementId <= el_wbr) { // newly added block elements
                 pstyle->display = css_d_inline; // previously unknown and shown as inline
-                if (gDOMVersionRequested < 20180524) {
+                if (domVersionRequested < 20180524) {
                     pstyle->display = css_d_inherit; // previously unknown and display: inherit
                 }
             }
-            if (gDOMVersionRequested < 20180528) { // revert what was changed 20180528
+            if (domVersionRequested < 20180528) { // revert what was changed 20180528
                 if (nodeElementId == el_form) {
                     pstyle->display = css_d_none; // otherwise shown as block, as it may have textual content
                 }
@@ -8883,11 +8982,11 @@ void setNodeStyle( ldomNode * enode, css_style_ref_t parent_style, LVFontRef par
                 }
                 if (nodeElementId >= el_address && nodeElementId <= el_xmp) { // newly added block elements
                     pstyle->display = css_d_inline; // previously unknown and shown as inline
-                    if (gDOMVersionRequested < 20180524) {
+                    if (domVersionRequested < 20180524) {
                         pstyle->display = css_d_inherit; // previously unknown and display: inherit
                     }
                 }
-                if (gDOMVersionRequested < 20180524) { // revert what was fixed 20180524
+                if (domVersionRequested < 20180524) { // revert what was fixed 20180524
                     if (nodeElementId == el_cite) {
                         pstyle->display = css_d_block; // otherwise correctly set to css_d_inline
                     }
@@ -8960,7 +9059,7 @@ void setNodeStyle( ldomNode * enode, css_style_ref_t parent_style, LVFontRef par
             // We can't get the codeBase of this node anymore at this point, which
             // would be needed to resolve "background-image: url(...)" relative
             // file path... So these won't work when defined in a style= attribute.
-            if ( decl.parse( s ) ) {
+            if ( decl.parse( s, domVersionRequested ) ) {
                 decl.apply( pstyle );
             }
         }
@@ -9033,7 +9132,8 @@ void setNodeStyle( ldomNode * enode, css_style_ref_t parent_style, LVFontRef par
         pstyle->display = css_d_none;
     }
 
-    if ( BLOCK_RENDERING_G(PREPARE_FLOATBOXES) ) {
+    lUInt32 rend_flags = enode->getDocument()->getRenderBlockRenderingFlags();
+    if ( BLOCK_RENDERING(rend_flags, PREPARE_FLOATBOXES) ) {
         // https://developer.mozilla.org/en-US/docs/Web/CSS/float
         //  As float implies the use of the block layout, it modifies the computed value
         //  of the display values, in some cases: [...]
@@ -9054,7 +9154,7 @@ void setNodeStyle( ldomNode * enode, css_style_ref_t parent_style, LVFontRef par
             }
         }
     }
-    if ( BLOCK_RENDERING_G(WRAP_FLOATS) ) {
+    if ( BLOCK_RENDERING(rend_flags, WRAP_FLOATS) ) {
         if ( nodeElementId == el_floatBox ) {
             // floatBox added, by initNodeRendMethod(), as a wrapper around
             // element with float:.
@@ -9100,7 +9200,7 @@ void setNodeStyle( ldomNode * enode, css_style_ref_t parent_style, LVFontRef par
         pstyle->float_ = css_f_none;
     }
 
-    if ( BLOCK_RENDERING_G(BOX_INLINE_BLOCKS) ) {
+    if ( BLOCK_RENDERING(rend_flags, BOX_INLINE_BLOCKS) ) {
         // See above, same reasoning
         if ( nodeElementId == el_inlineBox ) {
             // el_inlineBox are "display: inline" by default (defined in fb2def.h)
@@ -9145,7 +9245,7 @@ void setNodeStyle( ldomNode * enode, css_style_ref_t parent_style, LVFontRef par
         // node probably stayed with the default display: of the element when
         // no other lower specificity CSS set another).
         if ( pstyle->display == css_d_inline_block || pstyle->display == css_d_inline_table ) {
-            if ( !BLOCK_RENDERING_G(ENHANCED) && pstyle->display == css_d_inline_table ) {
+            if ( !BLOCK_RENDERING(rend_flags, ENHANCED) && pstyle->display == css_d_inline_table ) {
                 // In legacy mode, inline-table was handled like css_d_block (as all
                 // not specifically handled css_d_* are, so probably unwillingly).
                 pstyle->display = css_d_block;
@@ -9157,7 +9257,7 @@ void setNodeStyle( ldomNode * enode, css_style_ref_t parent_style, LVFontRef par
     }
 
     // Avoid some new features when migration to normalized xpointers has not yet been done
-    if ( gDOMVersionRequested < DOM_VERSION_WITH_NORMALIZED_XPOINTERS ) {
+    if ( domVersionRequested < DOM_VERSION_WITH_NORMALIZED_XPOINTERS ) {
         // display: ruby may wrap the element content in many inlineBox/rubyBox.
         // Avoid that until migrated to normalized xpointers by handling
         // them as css_d_inline like before ruby support.
@@ -9205,7 +9305,7 @@ void setNodeStyle( ldomNode * enode, css_style_ref_t parent_style, LVFontRef par
         //parent_style->text_align = css_ta_center;
     //}
 
-    if (gDOMVersionRequested < 20180524) { // display should not be inherited
+    if (domVersionRequested < 20180524) { // display should not be inherited
         UPDATE_STYLE_FIELD( display, css_d_inherit );
     }
     UPDATE_STYLE_FIELD( white_space, css_ws_inherit );
@@ -9374,8 +9474,8 @@ void setNodeStyle( ldomNode * enode, css_style_ref_t parent_style, LVFontRef par
                 int pem = parent_font->getSize(); // value in screen px
                 int line_h = lengthToPx(parent_style->line_height, pem, pem);
                 // Scale it according to gInterlineScaleFactor
-                if (gInterlineScaleFactor != INTERLINE_SCALE_FACTOR_NO_SCALE)
-                    line_h = (line_h * gInterlineScaleFactor) >> INTERLINE_SCALE_FACTOR_SHIFT;
+                if (enode->getDocument()->getInterlineScaleFactor() != INTERLINE_SCALE_FACTOR_NO_SCALE)
+                    line_h = (line_h * enode->getDocument()->getInterlineScaleFactor()) >> INTERLINE_SCALE_FACTOR_SHIFT;
                 pstyle->line_height.value = line_h;
                 pstyle->line_height.type = css_val_screen_px;
                 }
@@ -9653,7 +9753,7 @@ void getRenderedWidths(ldomNode * node, int &maxWidth, int &minWidth, int direct
                 int _maxw = 0;
                 int _minw = 0;
                 getRenderedWidths(node, _maxw, _minw, direction, false, rendFlags);
-                maxWidth += _maxw;
+                curMaxWidth += _maxw;
                 if (_minw > minWidth)
                     minWidth = _minw;
                 return;
@@ -9857,6 +9957,10 @@ void getRenderedWidths(ldomNode * node, int &maxWidth, int &minWidth, int direct
                                     // we might find some text nodes here.
                                     continue;
                                 }
+                                if ( child->getRendMethod() == erm_invisible ) {
+                                    // Ignore invisible nodes (like "<rp>(</rp>" inside <ruby>)
+                                    continue;
+                                }
                                 int _maxw = 0;
                                 int _minw = 0;
                                 int _curMaxWidth = 0;
@@ -9954,6 +10058,13 @@ void getRenderedWidths(ldomNode * node, int &maxWidth, int &minWidth, int direct
                  _maxWidth = columns_max_width;
             if ( _maxWidth < cumulative_max_width )
                  _maxWidth = cumulative_max_width;
+            // add horizontal border_spacing if "border-collapse: separate"
+            if ( style->border_collapse != css_border_collapse ) {
+                int em = node->getFont()->getSize();
+                int extra_width = lengthToPx(style->border_spacing[0], 0, em) * (nb_columns+1);
+                _minWidth += extra_width;
+                _maxWidth += extra_width;
+            }
             #ifdef DEBUG_GETRENDEREDWIDTHS
                 printf("GRW table: min %d %d > %d    max %d %d > %d\n", columns_min_width, cumulative_min_width,
                          _minWidth, columns_max_width, cumulative_max_width, _maxWidth);

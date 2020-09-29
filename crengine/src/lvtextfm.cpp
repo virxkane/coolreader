@@ -4203,6 +4203,11 @@ public:
                     pos--; // Have that last hyphen also at the start of next line
                            // (small caveat: the duplicated hyphen at start of next
                            // line won't be part of the highlighted text)
+                    // And forbid a break after this duplicated hyphen (this avoids
+                    // a possible infinite loop and out of memory when no allowed
+                    // wrap is found on next line, as we would continuously AddLine()
+                    // lines with only this hyphen)
+                    m_flags[pos] &= ~LCHAR_ALLOW_WRAP_AFTER;
                 }
             }
             #endif
@@ -4239,7 +4244,7 @@ public:
             LVRendPageContext context( NULL, m_pbuffer->page_height );
             // We don't know if the upper LVRendPageContext wants lines or not,
             // so assume it does (the main flow does).
-            int rend_flags = gRenderBlockRenderingFlags; // global flags
+            int rend_flags = node->getDocument()->getRenderBlockRenderingFlags();
             // We want to avoid negative margins (if allowed in global flags) and
             // going back the flow y, as the transfered lines would not reflect
             // that, and we could get some small mismatches and glitches.
@@ -4289,6 +4294,7 @@ public:
             int height = fmt.getHeight();
             formatted_line_t * frmline = lvtextAddFormattedLine( m_pbuffer );
             frmline->x = block_x;
+            frmline->width = width; // single word width
             frmline->y = cur_y;
             frmline->height = height;
             frmline->flags = 0; // no flags needed once page split has been done
