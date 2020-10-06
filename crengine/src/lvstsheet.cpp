@@ -1072,8 +1072,8 @@ bool parse_content_property( const char * & str, lString16 & parsed_content)
     // declaration, but, as we don't support all those from the
     // specs, we'll just ignore the tokens we don't support.
     // We parse the original content into a "parsed content" string,
-    // consisting of a first letter, indicating its type, and if
-    // some data: its length and that data.
+    // consisting of a first letter, indicating its type, and if some
+    // data: its length (+1 to avoid NULLs in strings) and that data.
     // parsed_content may contain multiple values, in the format
     //   'X' for 'none' (or 'normal', = none with pseudo elements)
     //   's' + <len> + string16 (string content) for ""
@@ -1139,7 +1139,7 @@ bool parse_content_property( const char * & str, lString16 & parsed_content)
                     lString16 attr = Utf8ToUnicode(attr8);
                     attr.trim();
                     parsed_content << L'a';
-                    parsed_content << lChar16(attr.length());
+                    parsed_content << lChar16(attr.length() + 1); // (+1 to avoid storing \x00)
                     parsed_content << attr;
                     continue;
                 }
@@ -1228,7 +1228,7 @@ bool parse_content_property( const char * & str, lString16 & parsed_content)
             if ( *str == quote_ch ) {
                 lString16 str16 = Utf8ToUnicode(str8);
                 parsed_content << L's';
-                parsed_content << lChar16(str16.length());
+                parsed_content << lChar16(str16.length() + 1); // (+1 to avoid storing \x00)
                 parsed_content << str16;
                 str++;
                 continue;
@@ -1317,12 +1317,12 @@ void update_style_content_property( css_style_rec_t * style, ldomNode * node ) {
     while ( i < parsed_content_len ) {
         lChar16 ctype = parsed_content[i];
         if ( ctype == 's' ) { // literal string: copy as-is
-            lChar16 len = parsed_content[i];
+            lChar16 len = parsed_content[i] - 1; // (remove added +1)
             res.append(parsed_content, i, len+2);
             i += len+2;
         }
         else if ( ctype == 'a' ) { // attribute value: copy as-is
-            lChar16 len = parsed_content[i];
+            lChar16 len = parsed_content[i] - 1; // (remove added +1)
             res.append(parsed_content, i, len+2);
             i += len+2;
         }
@@ -1368,12 +1368,12 @@ lString16 get_applied_content_property( ldomNode * node ) {
     while ( i < parsed_content_len ) {
         lChar16 ctype = parsed_content[i++];
         if ( ctype == 's' ) { // literal string
-            lChar16 len = parsed_content[i++];
+            lChar16 len = parsed_content[i++] - 1; // (remove added +1)
             res << parsed_content.substr(i, len);
             i += len;
         }
         else if ( ctype == 'a' ) { // attribute value
-            lChar16 len = parsed_content[i++];
+            lChar16 len = parsed_content[i++] - 1; // (remove added +1)
             lString16 attr_name = parsed_content.substr(i, len);
             i += len;
             ldomNode * attrNode = node;
@@ -1821,7 +1821,7 @@ enum cr_only_if_t {
     cr_only_if_fb2_document, // fb2 or fb3
 };
 
-bool LVCssDeclaration::parse( const char * &decl, bool higher_importance, lxmlDocBase * doc, lString16 codeBase )
+bool LVCssDeclaration::parse( const char * &decl, lUInt32 domVersionRequested, bool higher_importance, lxmlDocBase * doc, lString16 codeBase )
 {
     if ( !decl )
         return false;
@@ -1854,7 +1854,7 @@ bool LVCssDeclaration::parse( const char * &decl, bool higher_importance, lxmlDo
                 {
                     int dom_version;
                     if ( parse_integer( decl, dom_version ) ) {
-                        if ( gDOMVersionRequested >= dom_version ) {
+                        if ( domVersionRequested >= dom_version ) {
                             return false; // ignore the whole declaration
                         }
                     }
@@ -1884,28 +1884,36 @@ bool LVCssDeclaration::parse( const char * &decl, bool higher_importance, lxmlDo
                             match = invert;
                         }
                         else if ( name == cr_only_if_legacy ) {
-                            match = ((bool)BLOCK_RENDERING_G(ENHANCED)) == invert;
+                            if (doc)
+                                match = ((bool)BLOCK_RENDERING(doc->getRenderBlockRenderingFlags(), ENHANCED)) == invert;
                         }
                         else if ( name == cr_only_if_enhanced ) {
-                            match = ((bool)BLOCK_RENDERING_G(ENHANCED)) != invert;
+                            if (doc)
+                                match = ((bool)BLOCK_RENDERING(doc->getRenderBlockRenderingFlags(), ENHANCED)) != invert;
                         }
                         else if ( name == cr_only_if_float_floatboxes ) {
-                            match = ((bool)BLOCK_RENDERING_G(FLOAT_FLOATBOXES)) != invert;
+                            if (doc)
+                                match = ((bool)BLOCK_RENDERING(doc->getRenderBlockRenderingFlags(), FLOAT_FLOATBOXES)) != invert;
                         }
                         else if ( name == cr_only_if_box_inlineboxes ) {
-                            match = ((bool)BLOCK_RENDERING_G(BOX_INLINE_BLOCKS)) != invert;
+                            if (doc)
+                                match = ((bool)BLOCK_RENDERING(doc->getRenderBlockRenderingFlags(), BOX_INLINE_BLOCKS)) != invert;
                         }
                         else if ( name == cr_only_if_ensure_style_width ) {
-                            match = ((bool)BLOCK_RENDERING_G(ENSURE_STYLE_WIDTH)) != invert;
+                            if (doc)
+                                match = ((bool)BLOCK_RENDERING(doc->getRenderBlockRenderingFlags(), ENSURE_STYLE_WIDTH)) != invert;
                         }
                         else if ( name == cr_only_if_ensure_style_height ) {
-                            match = ((bool)BLOCK_RENDERING_G(ENSURE_STYLE_HEIGHT)) != invert;
+                            if (doc)
+                                match = ((bool)BLOCK_RENDERING(doc->getRenderBlockRenderingFlags(), ENSURE_STYLE_HEIGHT)) != invert;
                         }
                         else if ( name == cr_only_if_allow_style_w_h_absolute_units ) {
-                            match = ((bool)BLOCK_RENDERING_G(ALLOW_STYLE_W_H_ABSOLUTE_UNITS)) != invert;
+                            if (doc)
+                                match = ((bool)BLOCK_RENDERING(doc->getRenderBlockRenderingFlags(), ALLOW_STYLE_W_H_ABSOLUTE_UNITS)) != invert;
                         }
                         else if ( name == cr_only_if_full_featured ) {
-                            match = (gRenderBlockRenderingFlags == BLOCK_RENDERING_FULL_FEATURED) != invert;
+                            if (doc)
+                                match = (doc->getRenderBlockRenderingFlags() == BLOCK_RENDERING_FULL_FEATURED) != invert;
                         }
                         else if ( name == cr_only_if_epub_document ) {
                             // 'doc' is NULL when parsing elements style= attribute,
@@ -1991,7 +1999,7 @@ bool LVCssDeclaration::parse( const char * &decl, bool higher_importance, lxmlDo
                 break;
             case cssd_display:
                 n = parse_name( decl, css_d_names, -1 );
-                if (gDOMVersionRequested < 20180524 && n == css_d_list_item_block) {
+                if (domVersionRequested < 20180524 && n == css_d_list_item_block) {
                     n = css_d_list_item_legacy; // legacy rendering of list-item
                 }
                 break;
@@ -3189,9 +3197,11 @@ void LVCssDeclaration::apply( css_style_rec_t * style )
             {
                 int l = *p++;
                 lString16 content;
-                content.reserve(l);
-                for (int i=0; i<l; i++)
-                    content << (lChar16)(*p++);
+                if ( l > 0 ) {
+                    content.reserve(l);
+                    for (int i=0; i<l; i++)
+                        content << (lChar16)(*p++);
+                }
                 style->Apply( content, &style->content, imp_bit_content, is_important );
             }
             break;
@@ -4397,6 +4407,7 @@ bool LVStyleSheet::parse( const char * str, bool higher_importance, lString16 co
     LVCssSelector * prev_selector;
     int err_count = 0;
     int rule_count = 0;
+    lUInt32 domVersionRequested = (_doc != NULL) ? _doc->getDOMVersionRequested() : 0;
     for (;*str;)
     {
         // new rule
@@ -4427,7 +4438,7 @@ bool LVStyleSheet::parse( const char * str, bool higher_importance, lString16 co
             }
             // parse declaration
             LVCssDeclRef decl( new LVCssDeclaration );
-            if ( !decl->parse( str, higher_importance, _doc, codeBase ) )
+            if ( !decl->parse( str, domVersionRequested, higher_importance, _doc, codeBase ) )
             {
                 err = true;
                 err_count++;

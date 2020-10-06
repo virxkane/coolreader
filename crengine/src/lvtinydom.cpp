@@ -82,11 +82,10 @@
 // to be (only a little bit) more HTML5 conformant
 
 extern const int gDOMVersionCurrent = DOM_VERSION_CURRENT;
-int gDOMVersionRequested     = DOM_VERSION_CURRENT;
 
 
 /// change in case of incompatible changes in swap/cache file format to avoid using incompatible swap file
-#define CACHE_FILE_FORMAT_VERSION "3.12.70"
+#define CACHE_FILE_FORMAT_VERSION "3.12.72"
 
 /// increment following value to force re-formatting of old book after load
 #define FORMATTING_VERSION_ID 0x0025
@@ -390,15 +389,8 @@ lUInt32 calcGlobalSettingsHash(int documentId, bool already_rendered)
     if ( LVRendGetFontEmbolden() )
         hash = hash * 75 + 2384761;
     hash = hash * 31 + fontMan->GetFallbackFontFaces().getHash();
-    // Hanging punctuation does not need to trigger a re-render, as
-    // it's now ensured by alignLine() and won't change paragraphs height.
-    // We just need to _renderedBlockCache.clear() when it changes.
-    //if ( gHangingPunctuationEnabled )
-    //    hash = hash * 75 + 1761;
     hash = hash * 31 + gRenderDPI;
-    hash = hash * 31 + gRenderBlockRenderingFlags;
     hash = hash * 31 + gRootFontSize;
-    hash = hash * 31 + gInterlineScaleFactor;
     // If not yet rendered (initial loading with XML parsing), we can
     // ignore some global flags that have not yet produced any effect,
     // so they can possibly be updated between loading and rendering
@@ -489,10 +481,10 @@ struct SimpleCacheFileHeader
     char _magic[CACHE_FILE_MAGIC_SIZE] = { 0 }; // magic
     lUInt32 _dirty;
     lUInt32 _dom_version;
-    SimpleCacheFileHeader( lUInt32 dirtyFlag ) {
+    SimpleCacheFileHeader( lUInt32 dirtyFlag, lUInt32 domVersion ) {
         memcpy( _magic, _compressCachedData ? COMPRESSED_CACHE_FILE_MAGIC : UNCOMPRESSED_CACHE_FILE_MAGIC, CACHE_FILE_MAGIC_SIZE );
         _dirty = dirtyFlag;
-        _dom_version = gDOMVersionRequested;
+        _dom_version = domVersion;
     }
 };
 
@@ -501,7 +493,7 @@ struct CacheFileHeader : public SimpleCacheFileHeader
     lUInt32 _fsize;
     CacheFileItem _indexBlock; // index array block parameters,
     // duplicate of one of index records which contains
-    bool validate()
+    bool validate(lUInt32 domVersionRequested)
     {
         if (memcmp(_magic, _compressCachedData ? COMPRESSED_CACHE_FILE_MAGIC : UNCOMPRESSED_CACHE_FILE_MAGIC, CACHE_FILE_MAGIC_SIZE) != 0) {
             CRLog::error("CacheFileHeader::validate: magic doesn't match");
@@ -512,15 +504,15 @@ struct CacheFileHeader : public SimpleCacheFileHeader
             printf("CRE: ignoring cache file (marked as dirty)\n");
             return false;
         }
-        if ( _dom_version != gDOMVersionRequested ) {
+        if ( _dom_version != domVersionRequested ) {
             CRLog::error("CacheFileHeader::validate: DOM version mismatch");
             printf("CRE: ignoring cache file (dom version mismatch)\n");
             return false;
         }
         return true;
     }
-    CacheFileHeader( CacheFileItem * indexRec, int fsize, lUInt32 dirtyFlag )
-    : SimpleCacheFileHeader(dirtyFlag), _indexBlock(0,0)
+    CacheFileHeader( CacheFileItem * indexRec, int fsize, lUInt32 dirtyFlag, lUInt32 domVersion )
+    : SimpleCacheFileHeader(dirtyFlag, domVersion), _indexBlock(0,0)
     {
         if ( indexRec ) {
             memcpy( &_indexBlock, indexRec, sizeof(CacheFileItem));
@@ -539,6 +531,7 @@ class CacheFile
     int _size;
     bool _indexChanged;
     bool _dirty;
+    lUInt32 _domVersion;
     lString16 _cachePath;
     LVStreamRef _stream; // file stream
     LVPtrVector<CacheFileItem, true> _index; // full file block index
@@ -562,7 +555,7 @@ public:
     // return current file size
     int getSize() { return _size; }
     // create uninitialized cache file, call open or create to initialize
-    CacheFile();
+    CacheFile(lUInt32 domVersion);
     // free resources
     ~CacheFile();
     // try open existing cache file
@@ -598,6 +591,8 @@ public:
 
     /// sets dirty flag value, returns true if value is changed
     bool setDirtyFlag( bool dirty );
+    /// sets DOM version value, returns true if value is changed
+    bool setDOMVersion( lUInt32 domVersion );
     // flushes index
     bool flush( bool clearDirtyFlag, CRTimerUtil & maxTime );
     int roundSector( int n )
@@ -617,8 +612,8 @@ public:
 
 
 // create uninitialized cache file, call open or create to initialize
-CacheFile::CacheFile()
-: _sectorSize( CACHE_FILE_SECTOR_SIZE ), _size(0), _indexChanged(false), _dirty(true), _map(1024), _cachePath(lString16::empty_str)
+CacheFile::CacheFile(lUInt32 domVersion)
+: _sectorSize( CACHE_FILE_SECTOR_SIZE ), _size(0), _indexChanged(false), _dirty(true), _domVersion(domVersion), _map(1024), _cachePath(lString16::empty_str)
 {
 }
 
@@ -644,7 +639,7 @@ bool CacheFile::setDirtyFlag( bool dirty )
         CRLog::info("CacheFile::setting Dirty flag");
     }
     _dirty = dirty;
-    SimpleCacheFileHeader hdr(_dirty?1:0);
+    SimpleCacheFileHeader hdr(_dirty?1:0, _domVersion);
     _stream->SetPos(0);
     lvsize_t bytesWritten = 0;
     _stream->Write(&hdr, sizeof(hdr), &bytesWritten );
@@ -652,6 +647,22 @@ bool CacheFile::setDirtyFlag( bool dirty )
         return false;
     _stream->Flush(true);
     //CRLog::trace("setDirtyFlag : hdr is saved with Dirty flag = %d", hdr._dirty);
+    return true;
+}
+
+bool CacheFile::setDOMVersion( lUInt32 domVersion ) {
+    if ( _domVersion == domVersion )
+        return false;
+    CRLog::info("CacheFile::setting DOM version value");
+    _domVersion = domVersion;
+    SimpleCacheFileHeader hdr(_dirty?1:0, _domVersion);
+    _stream->SetPos(0);
+    lvsize_t bytesWritten = 0;
+    _stream->Write(&hdr, sizeof(hdr), &bytesWritten );
+    if ( bytesWritten!=sizeof(hdr) )
+        return false;
+    _stream->Flush(true);
+    //CRLog::trace("setDOMVersion : hdr is saved with DOM version = %u", hdr._domVersionRequested);
     return true;
 }
 
@@ -690,14 +701,15 @@ bool CacheFile::validateContents()
 // reads index from file
 bool CacheFile::readIndex()
 {
-    CacheFileHeader hdr(NULL, _size, 0);
+    CacheFileHeader hdr(NULL, _size, 0, 0);
     _stream->SetPos(0);
     lvsize_t bytesRead = 0;
     _stream->Read(&hdr, sizeof(hdr), &bytesRead );
     if ( bytesRead!=sizeof(hdr) )
         return false;
     CRLog::info("Header read: DirtyFlag=%d", hdr._dirty);
-    if ( !hdr.validate() )
+    CRLog::info("Header read: DOM level=%u", hdr._dom_version);
+    if ( !hdr.validate(_domVersion) )
         return false;
     if ( (int)hdr._fsize > _size + 4096-1 ) {
         CRLog::error("CacheFile::readIndex: file size doesn't match with header");
@@ -805,7 +817,7 @@ bool CacheFile::updateHeader()
 {
     CacheFileItem * indexItem = NULL;
     indexItem = findBlock(CBT_INDEX, 0);
-    CacheFileHeader hdr(indexItem, _size, _dirty?1:0);
+    CacheFileHeader hdr(indexItem, _size, _dirty?1:0, _domVersion);
     _stream->SetPos(0);
     lvsize_t bytesWritten = 0;
     _stream->Write(&hdr, sizeof(hdr), &bytesWritten );
@@ -2021,6 +2033,9 @@ tinyNodeCollection::tinyNodeCollection()
 ,_docProps(LVCreatePropsContainer())
 ,_docFlags(DOC_FLAG_DEFAULTS)
 ,_fontMap(113)
+,_hangingPunctuationEnabled(false)
+,_renderBlockRenderingFlags(BLOCK_RENDERING_FLAGS_DEFAULT)
+,_interlineScaleFactor(INTERLINE_SCALE_FACTOR_NO_SCALE)
 {
     memset( _textList, 0, sizeof(_textList) );
     memset( _elemList, 0, sizeof(_elemList) );
@@ -2061,24 +2076,66 @@ tinyNodeCollection::tinyNodeCollection( tinyNodeCollection & v )
 ,_docFlags(v._docFlags)
 ,_stylesheet(v._stylesheet)
 ,_fontMap(113)
+,_hangingPunctuationEnabled(v._hangingPunctuationEnabled)
+,_renderBlockRenderingFlags(v._renderBlockRenderingFlags)
+,_interlineScaleFactor(v._interlineScaleFactor)
 {
     memset( _textList, 0, sizeof(_textList) );
     memset( _elemList, 0, sizeof(_elemList) );
     // _docIndex assigned in ldomDocument constructor
 }
 
+bool tinyNodeCollection::setHangingPunctiationEnabled(bool value) {
+    if (_hangingPunctuationEnabled != value) {
+        _hangingPunctuationEnabled = value;
+        return true;
+    }
+    return false;
+}
+
+bool tinyNodeCollection::setRenderBlockRenderingFlags(lUInt32 flags) {
+    if (_renderBlockRenderingFlags != flags) {
+        _renderBlockRenderingFlags = flags;
+        // Check coherency and ensure dependencies of flags
+        if (_renderBlockRenderingFlags & ~BLOCK_RENDERING_ENHANCED) // If any other flag is set,
+            _renderBlockRenderingFlags |= BLOCK_RENDERING_ENHANCED; // set ENHANGED
+        if (_renderBlockRenderingFlags & BLOCK_RENDERING_FLOAT_FLOATBOXES)
+            _renderBlockRenderingFlags |= BLOCK_RENDERING_PREPARE_FLOATBOXES;
+        if (_renderBlockRenderingFlags & BLOCK_RENDERING_PREPARE_FLOATBOXES)
+            _renderBlockRenderingFlags |= BLOCK_RENDERING_WRAP_FLOATS;
+        return true;
+    }
+    return false;
+}
+
+bool tinyNodeCollection::setDOMVersionRequested(lUInt32 version)
+{
+    if (_DOMVersionRequested != version) {
+        _DOMVersionRequested = version;
+        return true;
+    }
+    return false;
+}
+
+bool tinyNodeCollection::setInterlineScaleFactor(int value) {
+    if (_interlineScaleFactor != value) {
+        _interlineScaleFactor = value;
+        return true;
+    }
+    return false;
+}
 
 #if BUILD_LITE!=1
 bool tinyNodeCollection::openCacheFile()
 {
     if ( _cacheFile )
         return true;
-    CacheFile * f = new CacheFile();
+    CacheFile * f = new CacheFile(_DOMVersionRequested);
     //lString16 cacheFileName("/tmp/cr3swap.tmp");
 
     lString16 fname = getProps()->getStringDef( DOC_PROP_FILE_NAME, "noname" );
     //lUInt32 sz = (lUInt32)getProps()->getInt64Def(DOC_PROP_FILE_SIZE, 0);
-    lUInt32 crc = getProps()->getIntDef(DOC_PROP_FILE_CRC32, 0);
+    lUInt32 crc = (lUInt32)getProps()->getIntDef(DOC_PROP_FILE_CRC32, 0);
 
     if ( !ldomDocCache::enabled() ) {
         CRLog::error("Cannot open cached document: cache dir is not initialized");
@@ -2123,12 +2180,12 @@ bool tinyNodeCollection::createCacheFile()
 {
     if ( _cacheFile )
         return true;
-    CacheFile * f = new CacheFile();
+    CacheFile * f = new CacheFile(_DOMVersionRequested);
     //lString16 cacheFileName("/tmp/cr3swap.tmp");
 
     lString16 fname = getProps()->getStringDef( DOC_PROP_FILE_NAME, "noname" );
     lUInt32 sz = (lUInt32)getProps()->getInt64Def(DOC_PROP_FILE_SIZE, 0);
-    lUInt32 crc = getProps()->getIntDef(DOC_PROP_FILE_CRC32, 0);
+    lUInt32 crc = (lUInt32)getProps()->getIntDef(DOC_PROP_FILE_CRC32, 0);
 
     if ( !ldomDocCache::enabled() ) {
         CRLog::error("Cannot swap: cache dir is not initialized");
@@ -2402,7 +2459,7 @@ bool tinyNodeCollection::loadNodeData()
     _textCount = textcount;
     return true;
 }
-#endif
+#endif  // BUILD_LITE!=1
 
 /// get ldomNode instance pointer
 ldomNode * tinyNodeCollection::getTinyNode( lUInt32 index )
@@ -5001,7 +5058,7 @@ ldomElementWriter::ldomElementWriter(ldomDocument * document, lUInt16 nsid, lUIn
     // Default (for elements not specified in fb2def.h) is to allow text
     // (except for the root node which must have children)
     _allowText = _typeDef ? _typeDef->allow_text : (_parent?true:false);
-    if (gDOMVersionRequested < 20180528) { // revert what was changed 20180528
+    if (_document->getDOMVersionRequested() < 20180528) { // revert what was changed 20180528
         // <hr>, <ul>, <ol>, <dl>, <output>, <section>, <svg> didn't allow text
         if ( id==el_hr || id==el_ul || id==el_ol || id==el_dl ||
                 id==el_output || id==el_section || id==el_svg ) {
@@ -5021,10 +5078,20 @@ ldomElementWriter::ldomElementWriter(ldomDocument * document, lUInt16 nsid, lUIn
     }
     else
         _element = _document->getRootNode(); //->insertChildElement( (lUInt32)-1, nsid, id );
-    if ( IS_FIRST_BODY && id==el_body ) {
-        _tocItem = _document->getToc();
-        //_tocItem->clear();
-        IS_FIRST_BODY = false;
+    if ( id==el_body ) {
+        if ( IS_FIRST_BODY ) {
+            _tocItem = _document->getToc();
+            //_tocItem->clear();
+            IS_FIRST_BODY = false;
+        }
+        else {
+            int fmt = _document->getProps()->getIntDef(DOC_PROP_FILE_FORMAT_ID, doc_format_none);
+            if ( fmt == doc_format_fb2 || fmt == doc_format_fb3 ) {
+                // Add FB2 2nd++ BODYs' titles (footnotes and endnotes) in the TOC
+                // (but not their own children that are <section>)
+                _isSection = true; // this is just to have updateTocItem() called
+            }
+        }
     }
     //logfile << "}";
 }
@@ -5067,9 +5134,9 @@ static bool isFloatingNode( ldomNode * node )
 
 static bool isNotBoxWrappingNode( ldomNode * node )
 {
-    if ( BLOCK_RENDERING_G(PREPARE_FLOATBOXES) && node->getStyle()->float_ > css_f_none )
+    if ( BLOCK_RENDERING(node->getDocument()->getRenderBlockRenderingFlags(), PREPARE_FLOATBOXES) && node->getStyle()->float_ > css_f_none )
         return false; // floatBox
-    // isBoxingInlineBox() already checks for BLOCK_RENDERING_G(BOX_INLINE_BLOCKS)
+    // isBoxingInlineBox() already checks for BLOCK_RENDERING(rend_flags, BOX_INLINE_BLOCKS)
     return !node->isBoxingInlineBox();
 }
 
@@ -5102,11 +5169,16 @@ void ldomElementWriter::updateTocItem()
 {
     if ( !_isSection )
         return;
-    // TODO: update item
-    if ( _parent && _parent->_tocItem ) {
+    if ( !_parent )
+        return;
+    if ( _parent->_tocItem ) { // <section> in the first <body>
         lString16 title = getSectionHeader( _element );
         //CRLog::trace("TOC ITEM: %s", LCSTR(title));
         _tocItem = _parent->_tocItem->addChild(title, ldomXPointer(_element,0), getPath() );
+    }
+    else if ( getElement()->getNodeId() == el_body ) { // 2nd, 3rd... <body>, in FB2 documents
+        lString16 title = getSectionHeader( _element );
+        _document->getToc()->addChild(title, ldomXPointer(_element,0), getPath() );
     }
     _isSection = false;
 }
@@ -5240,7 +5312,7 @@ static void resetRendMethodToInline( ldomNode * node )
     // hide other nodes)
     if (node->getStyle()->display != css_d_none)
         node->setRendMethod(erm_inline);
-    else if (gDOMVersionRequested < 20180528) // do that in all cases
+    else if (node->getDocument()->getDOMVersionRequested() < 20180528) // do that in all cases
         node->setRendMethod(erm_inline);
 }
 
@@ -5387,7 +5459,7 @@ void ldomNode::autoboxChildren( int startIndex, int endIndex, bool handleFloatin
         // remove starting empty
         removeChildren(startIndex, firstNonEmpty-1);
         abox->initNodeStyle();
-        if ( !BLOCK_RENDERING_G(FLOAT_FLOATBOXES) ) {
+        if ( !BLOCK_RENDERING(getDocument()->getRenderBlockRenderingFlags(), FLOAT_FLOATBOXES) ) {
             // If we don't want floatBoxes floating, reset them to be
             // rendered inline among inlines
             abox->recurseMatchingElements( resetRendMethodToInline, isNotBoxingInlineBoxNode );
@@ -5453,7 +5525,7 @@ bool ldomNode::hasNonEmptyInlineContent( bool ignoreFloats )
     if ( getRendMethod() == erm_invisible ) {
         return false;
     }
-    if ( ignoreFloats && BLOCK_RENDERING_G(FLOAT_FLOATBOXES) && getStyle()->float_ > css_f_none ) {
+    if ( ignoreFloats && BLOCK_RENDERING(getDocument()->getRenderBlockRenderingFlags(), FLOAT_FLOATBOXES) && getStyle()->float_ > css_f_none ) {
         return false;
     }
     // With some other bool param, we might want to also check for
@@ -5568,7 +5640,7 @@ ldomNode * ldomNode::boxWrapChildren( int startIndex, int endIndex, lUInt16 elem
 // init table element render methods
 // states: 0=table, 1=colgroup, 2=rowgroup, 3=row, 4=cell
 // returns table cell count
-// When BLOCK_RENDERING_G(COMPLETE_INCOMPLETE_TABLES), we follow rules
+// When BLOCK_RENDERING(rend_flags, COMPLETE_INCOMPLETE_TABLES), we follow rules
 // from the "Generate missing child wrappers" section in:
 //   https://www.w3.org/TR/CSS22/tables.html#anonymous-boxes
 //   https://www.w3.org/TR/css-tables-3/#fixup (clearer than previous one)
@@ -5721,7 +5793,8 @@ int initTableRendMethods( ldomNode * enode, int state )
         // Check and deal with unproper children
         if ( !is_proper ) { // Unproper child met
             // printf("initTableRendMethods(%d): child %d is unproper\n", state, i);
-            if ( BLOCK_RENDERING_G(COMPLETE_INCOMPLETE_TABLES) ) {
+            lUInt32 rend_flags = enode->getDocument()->getRenderBlockRenderingFlags();
+            if ( BLOCK_RENDERING(rend_flags, COMPLETE_INCOMPLETE_TABLES) ) {
                 // We can insert a tabularBox element to wrap unproper elements
                 last_unproper = i;
                 if (first_unproper < 0)
@@ -5730,7 +5803,7 @@ int initTableRendMethods( ldomNode * enode, int state )
             else {
                 // Asked to not complete incomplete tables, or we can't insert
                 // tabularBox elements anymore
-                if ( !BLOCK_RENDERING_G(ENHANCED) ) {
+                if ( !BLOCK_RENDERING(rend_flags, ENHANCED) ) {
                     // Legacy behaviour was to just make invisible internal-table
                     // elements that were not found in their proper internal-table
                     // container, but let other non-internal-table elements be
@@ -5818,10 +5891,10 @@ bool hasInvisibleParent( ldomNode * node )
 
 bool ldomNode::isFloatingBox() const
 {
-    // BLOCK_RENDERING_G(FLOAT_FLOATBOXES) is what triggers rendering
+    // BLOCK_RENDERING(rend_flags, FLOAT_FLOATBOXES) is what triggers rendering
     // the floats floating. They are wrapped in a floatBox, possibly
-    // not floating, when BLOCK_RENDERING_G(WRAP_FLOATS)).
-    if ( BLOCK_RENDERING_G(FLOAT_FLOATBOXES) && getNodeId() == el_floatBox
+    // not floating, when BLOCK_RENDERING(rend_flags, WRAP_FLOATS)).
+    if ( BLOCK_RENDERING(getDocument()->getRenderBlockRenderingFlags(), FLOAT_FLOATBOXES) && getNodeId() == el_floatBox
                 && getStyle()->float_ > css_f_none)
         return true;
     return false;
@@ -5831,11 +5904,11 @@ bool ldomNode::isFloatingBox() const
 /// its child no more inline-block/inline-table
 bool ldomNode::isBoxingInlineBox() const
 {
-    // BLOCK_RENDERING_G(BOX_INLINE_BLOCKS) is what ensures inline-block
+    // BLOCK_RENDERING(rend_flags, BOX_INLINE_BLOCKS) is what ensures inline-block
     // are boxed and rendered as an inline block, but we may have them
     // wrapping a node that is no more inline-block (when some style
     // tweaks have changed the display: property).
-    if ( getNodeId() == el_inlineBox && BLOCK_RENDERING_G(BOX_INLINE_BLOCKS) ) {
+    if ( getNodeId() == el_inlineBox && BLOCK_RENDERING(getDocument()->getRenderBlockRenderingFlags(), BOX_INLINE_BLOCKS) ) {
         if (getChildCount() == 1) {
             css_display_t d = getChildNode(0)->getStyle()->display;
             if (d == css_d_inline_block || d == css_d_inline_table) {
@@ -5859,7 +5932,7 @@ bool ldomNode::isBoxingInlineBox() const
 bool ldomNode::isEmbeddedBlockBoxingInlineBox(bool inline_box_checks_done) const
 {
     if ( !inline_box_checks_done ) {
-        if ( getNodeId() != el_inlineBox || !BLOCK_RENDERING_G(BOX_INLINE_BLOCKS) )
+        if ( getNodeId() != el_inlineBox || !BLOCK_RENDERING(getDocument()->getRenderBlockRenderingFlags(), BOX_INLINE_BLOCKS) )
             return false;
         if (getChildCount() != 1)
             return false;
@@ -5923,6 +5996,7 @@ void ldomNode::initNodeRendMethod()
     bool hasInternalTableItems = false;
 
     int d = getStyle()->display;
+    lUInt32 rend_flags = getDocument()->getRenderBlockRenderingFlags();
 
     if ( hasInvisibleParent(this) ) { // (should be named isInvisibleOrHasInvisibleParent())
         // Note: we could avoid that up-to-root-node walk for each node
@@ -5954,7 +6028,7 @@ void ldomNode::initNodeRendMethod()
         //   https://github.com/w3c/csswg-drafts/issues/1477
         //   https://stackoverflow.com/questions/1371307/displayblock-inside-displayinline
         //
-        if ( !BLOCK_RENDERING_G(BOX_INLINE_BLOCKS) ) {
+        if ( !BLOCK_RENDERING(rend_flags, BOX_INLINE_BLOCKS) ) {
             // No support for anything but inline elements, and possibly embedded floats
             recurseMatchingElements( resetRendMethodToInline, isNotBoxWrappingNode );
         }
@@ -6084,7 +6158,7 @@ void ldomNode::initNodeRendMethod()
         // call initTableRendMethods(this, 1/2/3) so that the "Generate missing
         // child wrappers" step is done before the "Generate missing parents" step
         // we might be doing below - to conform to the order of steps in the specs.
-    } else if ( d==css_d_inline_table && ( BLOCK_RENDERING_G(COMPLETE_INCOMPLETE_TABLES) || getNodeId()==el_table ) ) {
+    } else if ( d==css_d_inline_table && ( BLOCK_RENDERING(rend_flags, COMPLETE_INCOMPLETE_TABLES) || getNodeId()==el_table ) ) {
         // Only if we're able to complete incomplete tables, or if this
         // node is itself a <TABLE>. Otherwise, fallback to the following
         // catch-all 'else' and render its content as block.
@@ -6126,7 +6200,7 @@ void ldomNode::initNodeRendMethod()
         //   avoid having autoBoxing elements that would mess with a correct
         //   floating rendering.
         // Note that FLOAT_FLOATBOXES requires having PREPARE_FLOATBOXES.
-        bool handleFloating = BLOCK_RENDERING_G(PREPARE_FLOATBOXES);
+        bool handleFloating = BLOCK_RENDERING(rend_flags, PREPARE_FLOATBOXES);
 
         detectChildTypes( this, hasBlockItems, hasInline, hasInternalTableItems, hasFloating, handleFloating );
         const css_elem_def_props_t * ntype = getElementTypePtr();
@@ -6167,7 +6241,7 @@ void ldomNode::initNodeRendMethod()
                     setRendMethod( erm_block );
                 }
                 else {
-                    if ( !BLOCK_RENDERING_G(FLOAT_FLOATBOXES) ) {
+                    if ( !BLOCK_RENDERING(rend_flags, FLOAT_FLOATBOXES) ) {
                         // If we don't want floatBoxes floating, reset them to be
                         // rendered inline among inlines
                         recurseMatchingElements( resetRendMethodToInline, isNotBoxingInlineBoxNode );
@@ -6324,7 +6398,7 @@ void ldomNode::initNodeRendMethod()
         }
     }
 
-    if ( hasInternalTableItems && BLOCK_RENDERING_G(COMPLETE_INCOMPLETE_TABLES) && getRendMethod() == erm_block ) {
+    if ( hasInternalTableItems && BLOCK_RENDERING(rend_flags, COMPLETE_INCOMPLETE_TABLES) && getRendMethod() == erm_block ) {
         // We have only block items, whether the original ones or the
         // autoBoxing nodes we created to wrap inlines, and all empty
         // inlines have been removed.
@@ -6564,7 +6638,7 @@ void ldomNode::initNodeRendMethod()
         }
     }
 
-    if ( d == css_d_ruby && BLOCK_RENDERING_G(ENHANCED) ) {
+    if ( d == css_d_ruby && BLOCK_RENDERING(rend_flags, ENHANCED) ) {
         // Ruby input can be quite loose and have various tag strategies (mono/group,
         // interleaved/tabular, double sided). Moreover, the specs have evolved between
         // 2001 and 2020 (<rbc> tag no more mentionned in 2020; <rtc> being just another
@@ -6928,7 +7002,7 @@ void ldomNode::initNodeRendMethod()
     }
 
     bool handled_as_float = false;
-    if (BLOCK_RENDERING_G(WRAP_FLOATS)) {
+    if (BLOCK_RENDERING(rend_flags, WRAP_FLOATS)) {
         // While loading the document, we want to put any element with float:left/right
         // inside an internal floatBox element with no margin in its style: this
         // floatBox's RenderRectAccessor will have the position and width/height
@@ -7018,7 +7092,7 @@ void ldomNode::initNodeRendMethod()
                 
                 // If we have float:, this just-created floatBox should be erm_block,
                 // unless the child has been kept inline
-                if ( !BLOCK_RENDERING_G(PREPARE_FLOATBOXES) && getRendMethod() == erm_inline)
+                if ( !BLOCK_RENDERING(rend_flags, PREPARE_FLOATBOXES) && getRendMethod() == erm_inline)
                     fbox->setRendMethod( erm_inline );
                 else
                     fbox->setRendMethod( erm_block );
@@ -7067,7 +7141,7 @@ void ldomNode::initNodeRendMethod()
     }
 
     // (If a node is both inline-block and float: left/right, float wins.)
-    if (BLOCK_RENDERING_G(BOX_INLINE_BLOCKS) && !handled_as_float) {
+    if (BLOCK_RENDERING(rend_flags, BOX_INLINE_BLOCKS) && !handled_as_float) {
         // (Similar to what we do above for floats, but simpler.)
         // While loading the document, we want to put any element with
         // display: inline-block or inline-table inside an internal inlineBox
@@ -8449,16 +8523,17 @@ bool ldomXPointer::getRect(lvRect & rect, bool extended, bool adjusted) const
         //CRLog::trace("ldomXPointer::getRect() - p==NULL");
         return false;
     }
+    ldomDocument* doc = p->getDocument();
     //printf("getRect( p=%08X type=%d )\n", (unsigned)p, (int)p->getNodeType() );
-    else if ( !p->getDocument() ) {
+    if ( !doc ) {
         //CRLog::trace("ldomXPointer::getRect() - p->getDocument()==NULL");
         return false;
     }
-    ldomNode * mainNode = p->getDocument()->getRootNode();
+    ldomNode * mainNode = doc->getRootNode();
     for ( ; p; p = p->getParentNode() ) {
         int rm = p->getRendMethod();
         if ( rm == erm_final ) {
-            if ( gDOMVersionRequested < 20180524 && p->getStyle()->display == css_d_list_item_legacy ) {
+            if ( doc->getDOMVersionRequested() < 20180524 && p->getStyle()->display == css_d_list_item_legacy ) {
                 // This legacy rendering of list item is now erm_final, but
                 // can contain other real erm_final nodes.
                 // So, if we found an erm_final, and if we find this erm_final
@@ -10161,11 +10236,31 @@ bool ldomDocument::findText( lString16 pattern, bool caseInsensitive, bool rever
         if (!start.isNull())
             break;
     }
+    if (start.isNull()) {
+        // If none found (can happen when minY=0 and blank content at start
+        // of document like a <br/>), scan forward from document start
+        for (int y = 0; y <= fh; y++) {
+            start = createXPointer( lvPoint(0, y), reverse ? PT_DIR_SCAN_BACKWARD_LOGICAL_FIRST
+                                                           : PT_DIR_SCAN_FORWARD_LOGICAL_FIRST );
+            if (!start.isNull())
+                break;
+        }
+    }
     for (int y = maxY; y <= fh; y++) {
         end = createXPointer( lvPoint(10000, y), reverse ? PT_DIR_SCAN_BACKWARD_LOGICAL_LAST
                                                          : PT_DIR_SCAN_FORWARD_LOGICAL_LAST );
         if (!end.isNull())
             break;
+    }
+    if (end.isNull()) {
+        // If none found (can happen when maxY=fh and blank content at end
+        // of book like a <br/>), scan backward from document end
+        for (int y = fh; y >= 0; y--) {
+            end = createXPointer( lvPoint(10000, y), reverse ? PT_DIR_SCAN_BACKWARD_LOGICAL_LAST
+                                                             : PT_DIR_SCAN_FORWARD_LOGICAL_LAST );
+            if (!end.isNull())
+                break;
+        }
     }
 
     if ( start.isNull() || end.isNull() )
@@ -13209,11 +13304,11 @@ bool ldomDocumentWriterFilter::AutoOpenClosePop( int step, lUInt16 tag_id )
                 }
             }
             if ( (tag_id >= EL_IN_HEAD_START && tag_id <= EL_IN_HEAD_END) || tag_id == el_noscript ) {
+                _headTagSeen = true;
                 if ( tag_id != el_head ) {
                     OnTagOpen(L"", L"head");
                     OnTagBody();
                 }
-                _headTagSeen = true;
             }
             curNodeId = _currNode ? _currNode->getElement()->getNodeId() : el_NULL;
         }
@@ -13223,13 +13318,14 @@ bool ldomDocumentWriterFilter::AutoOpenClosePop( int step, lUInt16 tag_id )
             // end of <head> and start of <body>
             if ( _headTagSeen )
                 OnTagClose(L"", L"head");
+            else
+                _headTagSeen = true; // We won't open any <head> anymore
+            _bodyTagSeen = true;
             if ( tag_id != el_body ) {
                 OnTagOpen(L"", L"body");
                 OnTagBody();
             }
             curNodeId = _currNode ? _currNode->getElement()->getNodeId() : el_NULL;
-            _bodyTagSeen = true;
-            _headTagSeen = true; // We won't open any <head> anymore
         }
     }
     if ( step == PARSER_STEP_TEXT ) // new text: nothing more to do
@@ -13558,7 +13654,7 @@ ldomNode * ldomDocumentWriterFilter::OnTagOpen( const lChar16 * nsname, const lC
     // Fixed 20180503: this was done previously in any case, but now only
     // if _libRuDocumentDetected. We still allow the old behaviour if
     // requested to keep previously recorded XPATHs valid.
-    if ( _libRuDocumentDetected || gDOMVersionRequested < 20180503) {
+    if ( _libRuDocumentDetected || _document->getDOMVersionRequested() < 20180503) {
         // Patch for bad LIB.RU books - BR delimited paragraphs
         // in "Fine HTML" format, that appears as:
         //   <br>&nbsp; &nbsp; &nbsp; Viento fuerte, 1950
@@ -13610,7 +13706,7 @@ ldomNode * ldomDocumentWriterFilter::OnTagOpen( const lChar16 * nsname, const lC
 
     bool tag_accepted = true;
     bool insert_before_last_child = false;
-    if (gDOMVersionRequested >= 20200824) { // A little bit more HTML5 conformance
+    if (_document->getDOMVersionRequested() >= 20200824) { // A little bit more HTML5 conformance
         if ( id == el_image )
             id = el_img;
         if ( tagname && tagname[0] == '?' ) {
@@ -13670,7 +13766,7 @@ ldomNode * ldomDocumentWriterFilter::OnTagOpen( const lChar16 * nsname, const lC
         _curFosteredNode = _currNode;
     }
 
-    if (gDOMVersionRequested >= 20200824 && id == el_p) {
+    if (_document->getDOMVersionRequested() >= 20200824 && id == el_p) {
         // To avoid checking DOM ancestors with the numerous tags that close a P
         _lastP = _currNode;
     }
@@ -13901,7 +13997,7 @@ void ldomDocumentWriterFilter::OnTagClose( const lChar16 * /*nsname*/, const lCh
         }
     }
 
-    if (gDOMVersionRequested >= 20200824) { // A little bit more HTML5 conformance
+    if (_document->getDOMVersionRequested() >= 20200824) { // A little bit more HTML5 conformance
         if ( _curNodeIsSelfClosing ) { // Internal call (not from XMLParser)
             _currNode = pop( _currNode, id );
             _curNodeIsSelfClosing = false;
@@ -13947,7 +14043,7 @@ void ldomDocumentWriterFilter::OnText( const lChar16 * text, int len, lUInt32 fl
         return;
     }
 
-    if (gDOMVersionRequested >= 20200824) { // A little bit more HTML5 conformance
+    if (_document->getDOMVersionRequested() >= 20200824) { // A little bit more HTML5 conformance
         // We can get text before any node (it should then have <html><body> emited before it),
         // but we might get spaces between " <html> <head> <title>The title <br>The content".
         // Try to handle that correctly.
@@ -13968,14 +14064,14 @@ void ldomDocumentWriterFilter::OnText( const lChar16 * text, int len, lUInt32 fl
     if (_currNode)
     {
         lUInt16 curNodeId = _currNode->getElement()->getNodeId();
-        if (gDOMVersionRequested < 20200824) {
+        if (_document->getDOMVersionRequested() < 20200824) {
             AutoClose( curNodeId, false );
         }
         if ( (_flags & XML_FLAG_NO_SPACE_TEXT)
              && IsEmptySpace(text, len) && !(flags & TXTFLG_PRE))
              return;
         bool insert_before_last_child = false;
-        if (gDOMVersionRequested >= 20200824) {
+        if (_document->getDOMVersionRequested() >= 20200824) {
             // If we're inserting text while in table sub-elements that
             // don't accept text, have it foster parented
             if ( curNodeId >= el_table && curNodeId <= el_tr && curNodeId != el_caption ) {
@@ -14090,7 +14186,7 @@ ldomDocumentWriterFilter::ldomDocumentWriterFilter(ldomDocument * document, bool
 , _curFosteredNode(NULL)
 , _lastP(NULL)
 {
-    if (gDOMVersionRequested >= 20200824) {
+    if (_document->getDOMVersionRequested() >= 20200824) {
         // We're not using the provided rules, but hardcoded ones in AutoOpenClosePop()
         return;
     }
@@ -14117,8 +14213,7 @@ ldomDocumentWriterFilter::ldomDocumentWriterFilter(ldomDocument * document, bool
 
 ldomDocumentWriterFilter::~ldomDocumentWriterFilter()
 {
-
-    if (gDOMVersionRequested >= 20200824) {
+    if (_document->getDOMVersionRequested() >= 20200824) {
         return;
     }
     for ( int i=0; i<MAX_ELEMENT_TYPE_ID; i++ ) {
@@ -14793,7 +14888,7 @@ lUInt32 tinyNodeCollection::calcStyleHash(bool already_rendered)
                         if (style.get()->white_space >= css_ws_pre_line)
                             _nodeDisplayStyleHash += 29;
                         // Also account for style->float_, as it should create/remove new floatBox
-                        // elements wrapping floats when toggling BLOCK_RENDERING_G(ENHANCED)
+                        // elements wrapping floats when toggling BLOCK_RENDERING(rend_flags, ENHANCED)
                         if (style.get()->float_ > css_f_none)
                             _nodeDisplayStyleHash += 123;
                     }
@@ -14824,6 +14919,16 @@ lUInt32 tinyNodeCollection::calcStyleHash(bool already_rendered)
     // only on a laid out line, it does not need a re-rendering, but just
     // a _renderedBlockCache.clear() to reformat paragraphs and have the
     // word re-positionned (the paragraphs width & height do not change)
+
+    // Hanging punctuation does not need to trigger a re-render, as
+    // it's now ensured by alignLine() and won't change paragraphs height.
+    // We just need to _renderedBlockCache.clear() when it changes.
+    //if ( gHangingPunctuationEnabled )
+    // res = res * 75 + 1761;
+
+    res = res * 31 + _renderBlockRenderingFlags;
+    res = res * 31 + _interlineScaleFactor;
+
     res = (res * 31 + globalHash) * 31 + docFlags;
 //    CRLog::info("Calculated style hash = %08x", res);
     CRLog::debug("calcStyleHash done");
@@ -16820,7 +16925,7 @@ ldomNode * ldomNode::getLastTextChild()
 
 #if BUILD_LITE!=1
 /// find node by coordinates of point in formatted document
-ldomNode * ldomNode::elementFromPoint( lvPoint pt, int direction )
+ldomNode * ldomNode::elementFromPoint( lvPoint pt, int direction, bool strict_bounds_checking )
 {
     ASSERT_NODE_NOT_NULL;
     if ( !isElement() )
@@ -16857,8 +16962,8 @@ ldomNode * ldomNode::elementFromPoint( lvPoint pt, int direction )
 
     RenderRectAccessor fmt( this );
 
-    if ( BLOCK_RENDERING_G(ENHANCED) ) {
-        // In enhanced rendering mode, because of collpasing of vertical margins
+    if ( BLOCK_RENDERING(getDocument()->getRenderBlockRenderingFlags(), ENHANCED) ) {
+        // In enhanced rendering mode, because of collapsing of vertical margins
         // and the fact that we did not update style margins to their computed
         // values, a children box with margins can overlap its parent box, if
         // the child bigger margin collapsed with the parent smaller margin.
@@ -16922,6 +17027,19 @@ ldomNode * ldomNode::elementFromPoint( lvPoint pt, int direction )
                 // Float starts after pt.y: next non-float siblings may contain pt.y
                 return NULL;
             }
+            // When children of the parent node have been re-ordered, we can't
+            // trust the ordering, and if pt.y is before fmt.getY(), we might
+            // still find it in a next node that have been re-ordered before
+            // this one for rendering.
+            // Note: for now, happens only with re-ordered table rows, so
+            // we're only ensuring it here for y. This check might have to
+            // also be done elsewhere in this function when we use it for
+            // other things.
+            if ( strict_bounds_checking && pt.y < fmt.getY() ) {
+                // Box fully after pt.y: not a candidate, next one
+                // (if reordered) may be
+                return NULL;
+            }
             // pt.y is inside the box (without overflows), go on with it.
             // Note: we don't check for next elements which may have a top
             // overflow and have pt.y inside it, because it would be a bit
@@ -16931,7 +17049,12 @@ ldomNode * ldomNode::elementFromPoint( lvPoint pt, int direction )
         else { // PT_DIR_SCAN_BACKWARD*
             // We get the parent node's children in descending order
             if ( pt.y < fmt.getY() ) {
-                // Box fully before pt.y: not a candidate, next one may be
+                // Box fully after pt.y: not a candidate, next one may be
+                return NULL;
+            }
+            if ( strict_bounds_checking && pt.y >= fmt.getY() + fmt.getHeight() ) {
+                // Box fully before pt.y: not a candidate, next one
+                // (if reordered) may be
                 return NULL;
             }
         }
@@ -17001,17 +17124,18 @@ ldomNode * ldomNode::elementFromPoint( lvPoint pt, int direction )
     // Not a final node, but a block container node that must contain
     // the final node we look for: check its children.
     int count = getChildCount();
+    strict_bounds_checking = RENDER_RECT_HAS_FLAG(fmt, CHILDREN_RENDERING_REORDERED);
     if ( direction >= PT_DIR_EXACT ) { // PT_DIR_EXACT or PT_DIR_SCAN_FORWARD*
         for ( int i=0; i<count; i++ ) {
             ldomNode * p = getChildNode( i );
-            ldomNode * e = p->elementFromPoint( lvPoint(pt.x-fmt.getX(), pt.y-fmt.getY()), direction );
+            ldomNode * e = p->elementFromPoint( lvPoint(pt.x-fmt.getX(), pt.y-fmt.getY()), direction, strict_bounds_checking );
             if ( e )
                 return e;
         }
     } else {
         for ( int i=count-1; i>=0; i-- ) {
             ldomNode * p = getChildNode( i );
-            ldomNode * e = p->elementFromPoint( lvPoint(pt.x-fmt.getX(), pt.y-fmt.getY()), direction );
+            ldomNode * e = p->elementFromPoint( lvPoint(pt.x-fmt.getX(), pt.y-fmt.getY()), direction, strict_bounds_checking );
             if ( e )
                 return e;
         }
@@ -18202,7 +18326,7 @@ int ldomNode::renderFinalBlock(  LFormattedTextRef & frmtext, RenderRectAccessor
     // cached into the LFormattedText and ready to be used for drawing
     // and text selection.
     int h = f->Format((lUInt16)width, (lUInt16)page_h, direction, usable_left_overflow, usable_right_overflow,
-                            gHangingPunctuationEnabled, float_footprint);
+                            getDocument()->getHangingPunctiationEnabled(), float_footprint);
     frmtext = f;
     //CRLog::trace("Created new formatted object for node #%08X", (lUInt32)this);
     return h;
