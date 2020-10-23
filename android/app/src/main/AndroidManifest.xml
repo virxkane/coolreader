@@ -65,7 +65,8 @@
         android:label="@string/app_name_fork"
         android:process="org.coolreader.mod.virxkane"
         android:resizeableActivity="true"
-        android:usesCleartextTraffic="true" >
+        android:usesCleartextTraffic="true"
+        android:requestLegacyExternalStorage="true" >
 <!--
            android:configChanges="orientation|keyboardHidden|locale|screenSize"
 -->
