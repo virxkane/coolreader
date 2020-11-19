@@ -14,6 +14,7 @@ import java.util.concurrent.Callable;
 import org.coolreader.CoolReader;
 import org.coolreader.R;
 import org.coolreader.crengine.InputDialog.InputHandler;
+import org.coolreader.db.CRDBService;
 import org.koekak.android.ebookdownloader.SonyBookSelector;
 
 import android.content.ContentValues;
@@ -1881,6 +1882,11 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 				if (fi.language != null) {
 					items.add("book.language=" + fi.language);
 				}
+				if (fi.format == DocumentFormat.FB2) {
+					if (fi.keywords != null && fi.keywords.length() > 0) {
+						items.add("book.keywords=" + fi.keywords);
+					}
+				}
 				BookInfoDialog dlg = new BookInfoDialog(mActivity, items);
 				dlg.show();
 			}
@@ -2468,6 +2474,9 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 				log.i("Switched to dictionary: " + Integer.toString(mActivity.mDictionaries.isiDic2IsActive() + 1));
 				mActivity.showToast("Switched to dictionary: " + Integer.toString(mActivity.mDictionaries.isiDic2IsActive() + 1));
 				break;
+			case DCMD_BACKLIGHT_SET_DEFAULT:
+				setSetting(PROP_APP_SCREEN_BACKLIGHT, "-1");		// system default backlight level
+				break;
 			case DCMD_GOOGLEDRIVE_SYNC:
 				if (0 == param) {							// sync to
 					mActivity.forceSyncToGoogleDrive();
@@ -2829,6 +2838,7 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 					|| PROP_APP_DOUBLE_TAP_SELECTION.equals(key)
 					|| PROP_APP_FLICK_BACKLIGHT_CONTROL.equals(key)
 					|| PROP_APP_FILE_BROWSER_HIDE_EMPTY_FOLDERS.equals(key)
+					|| PROP_APP_FILE_BROWSER_HIDE_EMPTY_GENRES.equals(key)
 					|| PROP_APP_SELECTION_ACTION.equals(key)
 					|| PROP_APP_FILE_BROWSER_SIMPLE_MODE.equals(key)
 					|| PROP_APP_GESTURE_PAGE_FLIPPING.equals(key)
@@ -3787,8 +3797,15 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 
 	private void startBrightnessControl(final int startX, final int startY) {
 		currentBrightnessValue = mActivity.getScreenBacklightLevel();
-		if (!DeviceInfo.EINK_SCREEN)
+		if (!DeviceInfo.EINK_SCREEN) {
 			currentBrightnessValueIndex = OptionsDialog.findBacklightSettingIndex(currentBrightnessValue);
+			if (0 == currentBrightnessValueIndex) {		// system backlight level
+				// A trick that allows you to reduce the brightness of the backlight
+				// if the brightness is set to the same as in the system.
+				currentBrightnessValue = 50;
+				currentBrightnessValueIndex = OptionsDialog.findBacklightSettingIndex(currentBrightnessValue);
+			}
+		}
 		else if (DeviceInfo.EINK_HAVE_FRONTLIGHT)
 			currentBrightnessValueIndex = Utils.findNearestIndex(EinkScreen.getFrontLightLevels(mActivity), currentBrightnessValue);
 		currentBrightnessPrevYPos = startY;
@@ -4975,10 +4992,11 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 		public void done() {
 			BackgroundThread.ensureGUI();
 			log.d("LoadDocumentTask, GUI thread is finished successfully");
-			if (Services.getHistory() != null) {
+			if (!Services.isStopped()) {
 				Services.getHistory().updateBookAccess(mBookInfo, getTimeElapsed());
-				mActivity.waitForCRDBService(() -> mActivity.getDB().saveBookInfo(mBookInfo));
-				if (coverPageBytes != null && mBookInfo != null && mBookInfo.getFileInfo() != null) {
+				final BookInfo finalBookInfo = new BookInfo(mBookInfo);
+				mActivity.waitForCRDBService(() -> mActivity.getDB().saveBookInfo(finalBookInfo));
+				if (coverPageBytes != null && mBookInfo.getFileInfo() != null) {
 					// TODO: fix it
 					/*
 					DocumentFormat format = mBookInfo.getFileInfo().format;
@@ -5022,9 +5040,10 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 			BackgroundThread.ensureGUI();
 			close();
 			log.v("LoadDocumentTask failed for " + mBookInfo, e);
+			final FileInfo finalFileInfo = new FileInfo(mBookInfo.getFileInfo());
 			mActivity.waitForCRDBService(() -> {
-				if (Services.getHistory() != null)
-					Services.getHistory().removeBookInfo(mActivity.getDB(), mBookInfo.getFileInfo(), true, false);
+				if (!Services.isStopped())
+					Services.getHistory().removeBookInfo(mActivity.getDB(), finalFileInfo, true, false);
 			});
 			mBookInfo = null;
 			log.d("LoadDocumentTask is finished with exception " + e.getMessage());
@@ -5278,7 +5297,9 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 						if (mylastSavePositionTaskId == lastSavePositionTaskId) {
 							if (bookInfo != null) {
 								log.v("saving last position");
-								if (Services.getHistory() != null) {
+								if (!Services.isStopped()) {
+									// this delayed task can be completed after calling CoolReader.onDestroy(),
+									// which in turn calls Services.stopServices().
 									savePositionBookmark(bmk);
 									Services.getHistory().updateBookAccess(bookInfo, getTimeElapsed());
 								}
@@ -5377,10 +5398,12 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 		if (bmk != null && mBookInfo != null && isBookLoaded()) {
 			//setBookPosition();
 			if (lastSavedBookmark == null || !lastSavedBookmark.getStartPos().equals(bmk.getStartPos())) {
-				Services.getHistory().updateRecentDir();
-				mActivity.getDB().saveBookInfo(mBookInfo);
-				mActivity.getDB().flush();
-				lastSavedBookmark = bmk;
+				if (!Services.isStopped()) {
+					Services.getHistory().updateRecentDir();
+					mActivity.getDB().saveBookInfo(mBookInfo);
+					mActivity.getDB().flush();
+					lastSavedBookmark = bmk;
+				}
 			}
 		}
 	}
@@ -5414,13 +5437,15 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 		mActivity.einkRefresh();
 		BackgroundThread.ensureGUI();
 		if (isBookLoaded() && mBookInfo != null) {
-			log.v("saving last immediately");
-			log.d("bookmark count 1 = " + mBookInfo.getBookmarkCount());
-			Services.getHistory().updateBookAccess(mBookInfo, getTimeElapsed());
-			log.d("bookmark count 2 = " + mBookInfo.getBookmarkCount());
-			mActivity.getDB().saveBookInfo(mBookInfo);
-			log.d("bookmark count 3 = " + mBookInfo.getBookmarkCount());
-			mActivity.getDB().flush();
+			if (!Services.isStopped()) {
+				log.v("saving last immediately");
+				log.d("bookmark count 1 = " + mBookInfo.getBookmarkCount());
+				Services.getHistory().updateBookAccess(mBookInfo, getTimeElapsed());
+				log.d("bookmark count 2 = " + mBookInfo.getBookmarkCount());
+				mActivity.getDB().saveBookInfo(mBookInfo);
+				log.d("bookmark count 3 = " + mBookInfo.getBookmarkCount());
+				mActivity.getDB().flush();
+			}
 		}
 		//scheduleSaveCurrentPositionBookmark(0);
 		//post( new SavePositionTask() );
