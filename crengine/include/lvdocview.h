@@ -317,6 +317,7 @@ private:
     lvRect m_pageRects[2];
     int    m_pagesVisible;
     int    m_pagesVisibleOverride;
+    bool   m_pagesVisible_onlyIfSane;
     int m_pageHeaderInfo;
     bool m_showCover;
     LVRefVec<LVImageSource> m_headerIcons;
@@ -672,7 +673,7 @@ public:
     /// get window visible page count (1 or 2)
     int getVisiblePageCount();
     /// set window visible page count (1 or 2)
-    void setVisiblePageCount( int n );
+    void setVisiblePageCount( int n , bool onlyIfSane=true );
     /// set window visible page count, to use exact value independent of font size and window sides
     void overrideVisiblePageCount(int n);
 
