@@ -2351,17 +2351,12 @@ void LVDocView::drawPageBackground( LVDrawBuf & drawbuf, int offsetX, int offset
         } else
             drawbuf.Clear(cl);
     }
-    // No need for a thin line separator: the middle margin was sized
-    // to be like the other margins: a separator would cut it in half
-    // and make it look like two smaller margins.
-    /*
-    if (drawbuf.GetBitsPerPixel() == 32 && getVisiblePageCount() == 2) {
+    if (getVisiblePageCount() == 2) {
         int x = drawbuf.GetWidth() / 2;
         lUInt32 cl = m_backgroundColor;
         cl = ((cl & 0xFCFCFC) + 0x404040) >> 1;
         drawbuf.FillRect(x, 0, x + 1, drawbuf.GetHeight(), cl);
     }
-    */
 }
 
 /// draw to specified buffer
