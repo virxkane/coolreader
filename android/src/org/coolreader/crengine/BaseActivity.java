@@ -102,6 +102,26 @@ public class BaseActivity extends Activity implements Settings {
 	private SettingsManager mSettingsManager;
 
 	protected void startServices() {
+		DisplayMetrics dm = new DisplayMetrics();
+		getWindowManager().getDefaultDisplay().getMetrics(dm);
+
+		try {
+			Field fld = dm.getClass().getField("densityDpi");
+			if (fld != null) {
+				Object v = fld.get(dm);
+				if (v != null && v instanceof Integer) {
+					densityDpi = ((Integer) v).intValue();
+					log.i("Screen density detected: " + densityDpi + "DPI");
+				}
+			}
+		} catch (Exception e) {
+			log.e("Cannot find field densityDpi, using default value");
+		}
+		float widthInches = (float)dm.widthPixels / (float)densityDpi;
+		float heightInches = (float)dm.heightPixels / (float)densityDpi;
+		diagonalInches = (float) Math.sqrt(widthInches * widthInches + heightInches * heightInches);
+		log.i("diagonal=" + diagonalInches + "  isSmartphone=" + isSmartphone());
+
 		// create settings
 		mSettingsManager = new SettingsManager(this);
 		// create rest of settings
@@ -136,27 +156,6 @@ public class BaseActivity extends Activity implements Settings {
 			// ignore
 		}
 		log.i("CoolReader version : " + getVersion());
-
-		Display d = getWindowManager().getDefaultDisplay();
-		DisplayMetrics m = new DisplayMetrics();
-		d.getMetrics(m);
-		try {
-			Field fld = m.getClass().getField("densityDpi");
-			if (fld != null) {
-				Object v = fld.get(m);
-				if (v != null && v instanceof Integer) {
-					densityDpi = ((Integer) v).intValue();
-					log.i("Screen density detected: " + densityDpi + "DPI");
-				}
-			}
-		} catch (Exception e) {
-			log.e("Cannot find field densityDpi, using default value");
-		}
-		float widthInches = m.widthPixels / densityDpi;
-		float heightInches = m.heightPixels / densityDpi;
-		diagonalInches = (float) Math.sqrt(widthInches * widthInches + heightInches * heightInches);
-
-		log.i("diagonal=" + diagonalInches + "  isSmartphone=" + isSmartphone());
 		//log.i("CoolReader.window=" + getWindow());
 		if (!DeviceInfo.EINK_SCREEN) {
 			WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
@@ -246,16 +245,17 @@ public class BaseActivity extends Activity implements Settings {
 		super.onPause();
 	}
 
-	protected void einkRefresh() {
-		EinkScreen.Refresh();
+	public void einkRefresh() {
+		// override it
 	}
 
 
 	protected static String PREF_FILE = "CR3LastBook";
 	protected static String PREF_LAST_BOOK = "LastBook";
 	protected static String PREF_LAST_LOCATION = "LastLocation";
-	protected static String PREF_LAST_NOTIFICATION = "LastNoticeNumber";
+	protected static String PREF_LAST_NOTIFICATION_MASK = "LastNoticeMask";
 	protected static String PREF_EXT_DATADIR_CREATETIME = "ExtDataDirCreateTime";
+	protected static String PREF_LAST_LOGCAT = "LastLogcat";
 
 	@Override
 	protected void onResume() {
@@ -326,7 +326,7 @@ public class BaseActivity extends Activity implements Settings {
 	}
 
 	private int densityDpi = 160;
-	private float diagonalInches = 4;
+	private float diagonalInches = 5;
 
 
 	private InterfaceTheme currentTheme = null;
@@ -410,7 +410,7 @@ public class BaseActivity extends Activity implements Settings {
 				R.attr.cr3_button_tts_drawable, R.attr.cr3_browser_folder_recent_drawable, R.attr.cr3_button_scroll_go_drawable,
 				R.attr.cr3_btn_books_swap_drawable, R.attr.cr3_logo_button_drawable, R.attr.cr3_viewer_exit_drawable,
 				R.attr.cr3_button_book_open_drawable, R.attr.cr3_browser_folder_current_book_drawable, R.attr.cr3_browser_folder_opds_drawable,
-				R.attr.google_drive_drawable };
+				R.attr.google_drive_drawable, R.attr.cr3_button_log_drawable };
 		TypedArray a = getTheme().obtainStyledAttributes(attrs);
 		int btnPrevDrawableRes = a.getResourceId(0, 0);
 		int btnNextDrawableRes = a.getResourceId(1, 0);
@@ -434,6 +434,7 @@ public class BaseActivity extends Activity implements Settings {
 		int brFolderCurrBookDrawableRes = a.getResourceId(19, 0);
 		int brFolderOpdsDrawableRes = a.getResourceId(20, 0);
 		int googleDriveDrawableRes = a.getResourceId(21, 0);
+		int btnLogDrawableRes = a.getResourceId(22, 0);
 		a.recycle();
 		if (btnPrevDrawableRes != 0) {
 			ReaderAction.GO_BACK.setIconId(btnPrevDrawableRes);
@@ -483,6 +484,8 @@ public class BaseActivity extends Activity implements Settings {
 			ReaderAction.GDRIVE_SYNCTO.setIconId(googleDriveDrawableRes);
 			ReaderAction.GDRIVE_SYNCFROM.setIconId(googleDriveDrawableRes);
 		}
+		if (btnLogDrawableRes != 0)
+			ReaderAction.SAVE_LOGCAT.setIconId(btnLogDrawableRes);
 	}
 
 	public void setCurrentTheme(InterfaceTheme theme) {
@@ -1298,6 +1301,22 @@ public class BaseActivity extends Activity implements Settings {
 
 	public void showNotice(int questionResourceId, final Runnable action, final Runnable cancelAction) {
 		NoticeDialog dlg = new NoticeDialog(this, action, cancelAction);
+		dlg.setMessage(questionResourceId);
+		dlg.show();
+	}
+
+	public void showNotice(int questionResourceId, final Runnable action) {
+		NoticeDialog dlg = new NoticeDialog(this, action, null);
+		dlg.setMessage(questionResourceId);
+		dlg.show();
+	}
+
+	public void showMessage(String title, String message) {
+		AlertDialog.Builder dlg = new AlertDialog.Builder(this);
+		if (null != title)
+			dlg.setTitle(title);
+		dlg.setMessage(message);
+		dlg.setPositiveButton(R.string.dlg_button_ok, (arg0, arg1) -> {});
 		dlg.show();
 	}
 
@@ -1435,7 +1454,6 @@ public class BaseActivity extends Activity implements Settings {
 
 		private BaseActivity mActivity;
 		private Properties mSettings;
-		private boolean isSmartphone;
 
 		private final DisplayMetrics displayMetrics = new DisplayMetrics();
 		private final File defaultSettingsDir;
@@ -1444,7 +1462,7 @@ public class BaseActivity extends Activity implements Settings {
 			this.mActivity = activity;
 			activity.getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
 			defaultSettingsDir = activity.getDir("settings", Context.MODE_PRIVATE);
-			isSmartphone = activity.isSmartphone();
+
 			mSettings = loadSettings();
 		}
 
@@ -1689,7 +1707,6 @@ public class BaseActivity extends Activity implements Settings {
 			boolean res = false;
 			res = applyDefaultFont(props, ReaderView.PROP_FONT_FACE, DeviceInfo.DEF_FONT_FACE) || res;
 			res = applyDefaultFont(props, ReaderView.PROP_STATUS_FONT_FACE, DeviceInfo.DEF_FONT_FACE) || res;
-			res = applyDefaultFont(props, ReaderView.PROP_FALLBACK_FONT_FACE, "Droid Sans Fallback") || res;
 			res = applyDefaultFallbackFontList(props, ReaderView.PROP_FALLBACK_FONT_FACES, "Droid Sans Fallback; Noto Sans CJK SC; Noto Sans Arabic UI; Noto Sans Devanagari UI; Roboto; FreeSans; FreeSerif; Noto Serif; Noto Sans; Arial Unicode MS") || res;
 			return res;
 		}

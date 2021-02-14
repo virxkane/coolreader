@@ -130,7 +130,7 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 		@Override
 		public void onWindowFocusChanged(boolean hasWindowFocus) {
 			if (hasWindowFocus) {
-				mActivity.einkRefresh();
+				BackgroundThread.instance().postGUI(mActivity::einkRefresh, 400);
 				startStats();
 				checkSize();
 			} else
@@ -2509,6 +2509,9 @@ public class ReaderView implements android.view.SurfaceHolder.Callback, Settings
 				} else if (1 == param) {					// sync from
 					mActivity.forceSyncFromGoogleDrive();
 				}
+				break;
+			case DCMD_SAVE_LOGCAT:
+				mActivity.createLogcatFile();
 				break;
 			default:
 				// do nothing
